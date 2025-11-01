@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
-import WizardPropiedad from '@/app/wizard/components/WizardPropiedad'
+import WizardModal from './components/WizardModal'
 import CompartirPropiedad from '@/components/CompartirPropiedad'
 import TopBar from '@/components/ui/topbar'
 import Loading from '@/components/ui/loading'
 import EmptyState from '@/components/ui/emptystate'
+import { PropertyFormData } from '@/types/property'
 
 interface Propiedad {
   id: string
@@ -97,6 +98,118 @@ export default function CatalogoPage() {
       router.push('/login')
     }
   }
+
+  // Guardar propiedad desde el wizard
+  const handleWizardSave = async (data: PropertyFormData) => {
+    if (!user?.id) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      // Preparar datos para Supabase
+      const propiedadData = {
+        user_id: user.id,
+        
+        // Datos básicos
+        nombre: data.nombre_propiedad,
+        tipo_propiedad: data.tipo_propiedad,
+        estados: data.estados,
+        mobiliario: data.mobiliario,
+        capacidad_personas: data.capacidad_personas ? parseInt(data.capacidad_personas) : null,
+        tamano_terreno: data.tamano_terreno ? parseFloat(data.tamano_terreno) : null,
+        tamano_terreno_unit: data.tamano_terreno_unit,
+        tamano_construccion: data.tamano_construccion ? parseFloat(data.tamano_construccion) : null,
+        tamano_construccion_unit: data.tamano_construccion_unit,
+
+        // Asignaciones
+        propietario_id: data.propietario_id,
+        supervisor_id: data.supervisor_id || null,
+
+        // Condicionales - Renta largo plazo
+        inquilino_id: data.inquilino_id || null,
+        fecha_inicio_contrato: data.fecha_inicio_contrato || null,
+        costo_renta_mensual: data.costo_renta_mensual ? parseFloat(data.costo_renta_mensual) : null,
+
+        // Condicionales - Renta vacacional
+        precio_noche: data.precio_noche ? parseFloat(data.precio_noche) : null,
+        amenidades_vacacional: data.amenidades_vacacional || [],
+
+        // Condicionales - Venta
+        precio_venta: data.precio_venta ? parseFloat(data.precio_venta) : null,
+
+        // Espacios (guardar como JSON)
+        espacios: data.espacios,
+
+        // Metadata
+        is_draft: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      const { data: propiedad, error } = await supabase
+        .from('propiedades')
+        .insert(propiedadData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Recargar propiedades
+      cargarPropiedades(user.id);
+      
+      // Opcional: Redirigir al home de la propiedad
+      // router.push(`/dashboard/propiedad/${propiedad.id}`);
+      
+    } catch (error) {
+      console.error('Error al guardar propiedad:', error);
+      throw error;
+    }
+  };
+
+  // Guardar borrador desde el wizard
+  const handleWizardSaveDraft = async (data: PropertyFormData) => {
+    if (!user?.id) {
+      console.warn('Usuario no autenticado');
+      return;
+    }
+
+    try {
+      const draftData = {
+        user_id: user.id,
+        nombre: data.nombre_propiedad || 'Borrador sin nombre',
+        tipo_propiedad: data.tipo_propiedad,
+        estados: data.estados,
+        mobiliario: data.mobiliario,
+        capacidad_personas: data.capacidad_personas ? parseInt(data.capacidad_personas) : null,
+        tamano_terreno: data.tamano_terreno ? parseFloat(data.tamano_terreno) : null,
+        tamano_terreno_unit: data.tamano_terreno_unit,
+        tamano_construccion: data.tamano_construccion ? parseFloat(data.tamano_construccion) : null,
+        tamano_construccion_unit: data.tamano_construccion_unit,
+        propietario_id: data.propietario_id || null,
+        supervisor_id: data.supervisor_id || null,
+        inquilino_id: data.inquilino_id || null,
+        fecha_inicio_contrato: data.fecha_inicio_contrato || null,
+        costo_renta_mensual: data.costo_renta_mensual ? parseFloat(data.costo_renta_mensual) : null,
+        precio_noche: data.precio_noche ? parseFloat(data.precio_noche) : null,
+        amenidades_vacacional: data.amenidades_vacacional || [],
+        precio_venta: data.precio_venta ? parseFloat(data.precio_venta) : null,
+        espacios: data.espacios,
+        is_draft: true,
+        updated_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('propiedades')
+        .upsert(draftData);
+
+      if (error) throw error;
+
+      console.log('✅ Borrador guardado');
+
+    } catch (error) {
+      console.error('Error al guardar borrador:', error);
+    }
+  };
 
   if (loading) {
     return <Loading message="Cargando propiedades..." />
@@ -228,14 +341,13 @@ export default function CatalogoPage() {
         />
       )}
 
-      {/* Wizard */}
-      {showWizard && (
-        <WizardPropiedad 
-          userId={user.id} 
-          onClose={() => setShowWizard(false)} 
-          onSuccess={() => cargarPropiedades(user.id)} 
-        />
-      )}
+      {/* Wizard Modal - NUEVO WIZARD LIMPIO */}
+      <WizardModal
+        isOpen={showWizard}
+        onClose={() => setShowWizard(false)}
+        onSave={handleWizardSave}
+        onSaveDraft={handleWizardSaveDraft}
+      />
     </div>
   )
 }
