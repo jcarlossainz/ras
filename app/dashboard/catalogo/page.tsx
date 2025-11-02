@@ -29,6 +29,10 @@ export default function CatalogoPage() {
   const [showCompartir, setShowCompartir] = useState(false)
   const [propiedadSeleccionada, setPropiedadSeleccionada] = useState<Propiedad | null>(null)
   
+  // Estados para búsqueda y filtro
+  const [busqueda, setBusqueda] = useState('')
+  const [filtroPropiedad, setFiltroPropiedad] = useState<'todos' | 'propios' | 'compartidos'>('todos')
+  
   const draftIdRef = useRef<string | null>(null)
   const isSavingRef = useRef(false)
 
@@ -107,7 +111,7 @@ export default function CatalogoPage() {
   }
 
   const abrirHome = (propiedadId: string) => {
-    router.push(`/dashboard/propiedad/${propiedadId}`)
+    router.push(`/dashboard/propiedad/${propiedadId}/home`)
   }
 
   const abrirGaleria = (propiedadId: string) => {
@@ -293,12 +297,96 @@ export default function CatalogoPage() {
       />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {propiedades.length > 0 ? (
+        {/* Barra sticky con búsqueda, filtro y títulos */}
+        <div className="sticky top-20 z-20 bg-white rounded-2xl shadow-lg border-2 border-gray-300 p-4 mb-6 backdrop-blur-sm bg-opacity-98">
+          <div className="flex items-center gap-4">
+            {/* Buscador tamaño completo */}
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre o código postal..."
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-ras-primary focus:outline-none transition-colors"
+                />
+                <svg className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+              </div>
+            </div>
+
+            {/* Dropdown de filtro */}
+            <div className="relative">
+              <select
+                value={filtroPropiedad}
+                onChange={(e) => setFiltroPropiedad(e.target.value as 'todos' | 'propios' | 'compartidos')}
+                className="appearance-none bg-white border-2 border-gray-200 rounded-lg px-4 py-2 pr-10 font-medium text-gray-700 hover:border-ras-primary focus:border-ras-primary focus:outline-none transition-colors cursor-pointer"
+              >
+                <option value="todos">📋 Todos</option>
+                <option value="propios">🏠 Propios</option>
+                <option value="compartidos">👥 Compartidos</option>
+              </select>
+              <svg className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+
+            {/* Separador vertical */}
+            <div className="h-8 w-px bg-gray-300"></div>
+
+            {/* Títulos de columnas con texto */}
+            <div className="flex items-center gap-3">
+              <div className="w-16 text-center">
+                <span className="text-xs font-bold text-cyan-700">Calendario</span>
+              </div>
+              <div className="w-16 text-center">
+                <span className="text-xs font-bold text-orange-700">Tickets</span>
+              </div>
+              <div className="w-16 text-center">
+                <span className="text-xs font-bold text-amber-700">Inventario</span>
+              </div>
+              <div className="w-16 text-center">
+                <span className="text-xs font-bold text-pink-700">Galería</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {propiedades.filter(prop => {
+          // Filtrar por búsqueda
+          const matchBusqueda = busqueda === '' || 
+            prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+            (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
+          
+          // Filtrar por tipo
+          const matchTipo = 
+            filtroPropiedad === 'todos' ||
+            (filtroPropiedad === 'propios' && prop.es_propio) ||
+            (filtroPropiedad === 'compartidos' && !prop.es_propio)
+          
+          return matchBusqueda && matchTipo
+        }).length > 0 ? (
           <div className="space-y-4">
-            {propiedades.map((prop) => (
+            {propiedades.filter(prop => {
+              // Filtrar por búsqueda
+              const matchBusqueda = busqueda === '' || 
+                prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
+              
+              // Filtrar por tipo
+              const matchTipo = 
+                filtroPropiedad === 'todos' ||
+                (filtroPropiedad === 'propios' && prop.es_propio) ||
+                (filtroPropiedad === 'compartidos' && !prop.es_propio)
+              
+              return matchBusqueda && matchTipo
+            }).map((prop) => (
               <div 
-                key={prop.id} 
-                className="bg-white rounded-2xl shadow-lg border border-gray-200 p-5 hover:shadow-xl transition-all flex items-center gap-4"
+                key={prop.id}
+                onClick={() => abrirHome(prop.id)}
+                className="bg-white rounded-2xl shadow-lg border border-gray-200 p-5 hover:shadow-xl transition-all flex items-center gap-4 cursor-pointer"
               >
                 {/* Foto thumbnail */}
                 <img 
@@ -359,54 +447,14 @@ export default function CatalogoPage() {
                 </div>
 
                 {/* Todos los botones en una sola fila horizontal */}
-                <div className="flex gap-2 flex-shrink-0">
-                  {/* Galería */}
+                <div className="flex gap-3 flex-shrink-0">
+                  {/* 1. Calendario */}
                   <button
-                    onClick={() => abrirGaleria(prop.id)}
-                    className="w-10 h-10 rounded-lg border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 hover:border-pink-400 transition-all flex items-center justify-center group"
-                    title="Galería"
-                  >
-                    <svg className="w-5 h-5 text-pink-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <path d="M21 15l-5-5L5 21"/>
-                    </svg>
-                  </button>
-
-                  {/* Inventario */}
-                  <button
-                    onClick={() => abrirInventario(prop.id)}
-                    className="w-10 h-10 rounded-lg border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 transition-all flex items-center justify-center group"
-                    title="Inventario"
-                  >
-                    <svg className="w-5 h-5 text-amber-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                      <line x1="12" y1="22.08" x2="12" y2="12"/>
-                    </svg>
-                  </button>
-
-                  {/* Tickets */}
-                  <button
-                    onClick={() => abrirTickets(prop.id)}
-                    className="w-10 h-10 rounded-lg border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-400 transition-all flex items-center justify-center group"
-                    title="Tickets"
-                  >
-                    <svg className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                      <line x1="9" y1="15" x2="15" y2="15"/>
-                      <line x1="9" y1="12" x2="12" y2="12"/>
-                    </svg>
-                  </button>
-
-                  {/* Calendario */}
-                  <button
-                    onClick={() => abrirCalendario(prop.id)}
-                    className="w-10 h-10 rounded-lg border-2 border-cyan-200 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400 transition-all flex items-center justify-center group"
+                    onClick={(e) => { e.stopPropagation(); abrirCalendario(prop.id); }}
+                    className="w-16 h-16 rounded-lg border-2 border-cyan-200 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400 hover:scale-110 transition-all flex items-center justify-center group"
                     title="Calendario"
                   >
-                    <svg className="w-5 h-5 text-cyan-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="w-10 h-10 text-cyan-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                       <line x1="16" y1="2" x2="16" y2="6"/>
                       <line x1="8" y1="2" x2="8" y2="6"/>
@@ -414,54 +462,43 @@ export default function CatalogoPage() {
                     </svg>
                   </button>
 
-                  {/* Cuentas */}
+                  {/* 2. Tickets */}
                   <button
-                    onClick={() => abrirCuentas(prop.id)}
-                    className="w-10 h-10 rounded-lg border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 transition-all flex items-center justify-center group"
-                    title="Cuentas"
+                    onClick={(e) => { e.stopPropagation(); abrirTickets(prop.id); }}
+                    className="w-16 h-16 rounded-lg border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-400 hover:scale-110 transition-all flex items-center justify-center group"
+                    title="Tickets"
                   >
-                    <svg className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="12" y1="1" x2="12" y2="23"/>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    <svg className="w-10 h-10 text-orange-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="9" y1="15" x2="15" y2="15"/>
+                      <line x1="9" y1="12" x2="12" y2="12"/>
                     </svg>
                   </button>
 
-                  {/* Compartir */}
+                  {/* 3. Inventario */}
                   <button
-                    onClick={() => abrirCompartir(prop)}
-                    className="w-10 h-10 rounded-lg border-2 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 transition-all flex items-center justify-center group"
-                    title="Compartir"
+                    onClick={(e) => { e.stopPropagation(); abrirInventario(prop.id); }}
+                    className="w-16 h-16 rounded-lg border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 hover:scale-110 transition-all flex items-center justify-center group"
+                    title="Inventario"
                   >
-                    <svg className="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="18" cy="5" r="3"/>
-                      <circle cx="6" cy="12" r="3"/>
-                      <circle cx="18" cy="19" r="3"/>
-                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    <svg className="w-10 h-10 text-amber-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                      <line x1="12" y1="22.08" x2="12" y2="12"/>
                     </svg>
                   </button>
 
-                  {/* Home */}
+                  {/* 4. Galería */}
                   <button
-                    onClick={() => abrirHome(prop.id)}
-                    className="w-10 h-10 rounded-lg border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition-all flex items-center justify-center group"
-                    title="Ver Home"
+                    onClick={(e) => { e.stopPropagation(); abrirGaleria(prop.id); }}
+                    className="w-16 h-16 rounded-lg border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 hover:border-pink-400 hover:scale-110 transition-all flex items-center justify-center group"
+                    title="Galería"
                   >
-                    <svg className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                      <polyline points="9 22 9 12 15 12 15 22"/>
-                    </svg>
-                  </button>
-
-                  {/* Editar */}
-                  <button
-                    onClick={() => editarPropiedad(prop.id)}
-                    className="w-10 h-10 rounded-lg border-2 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-400 transition-all flex items-center justify-center group"
-                    title="Editar"
-                  >
-                    <svg className="w-5 h-5 text-green-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    <svg className="w-10 h-10 text-pink-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <path d="M21 15l-5-5L5 21"/>
                     </svg>
                   </button>
                 </div>
@@ -476,10 +513,10 @@ export default function CatalogoPage() {
                 <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
             }
-            title="No tienes propiedades"
-            description="Usa el botón + para crear tu primera propiedad"
-            actionLabel="+ Crear Propiedad"
-            onAction={() => setShowWizard(true)}
+            title={propiedades.length === 0 ? "No tienes propiedades" : "No se encontraron resultados"}
+            description={propiedades.length === 0 ? "Usa el botón + para crear tu primera propiedad" : "Intenta con otra búsqueda o cambia los filtros"}
+            actionLabel={propiedades.length === 0 ? "+ Crear Propiedad" : undefined}
+            onAction={propiedades.length === 0 ? () => setShowWizard(true) : undefined}
           />
         )}
       </main>
