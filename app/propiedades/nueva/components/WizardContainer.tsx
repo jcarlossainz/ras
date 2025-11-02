@@ -5,24 +5,25 @@ import { PropertyFormData } from '@/types/property';
 import WizardProgress from './WizardProgress';
 import WizardNavigation from './WizardNavigation';
 import Step1_DatosGenerales from '../steps/Step1_DatosGenerales';
-import Step2_Condicionales from '../steps/Step2_Condicionales';
+import Step2_Ubicacion from '../steps/Step2_Ubicacion';
 import Step3_Espacios from '../steps/Step3_Espacios';
+import Step4_Condicionales from '../steps/Step4_Condicionales';
 
-// Definición de los pasos del wizard (reducido a 3 pasos)
+// Definición de los pasos del wizard (4 pasos reordenados)
 const WIZARD_STEPS = [
   { 
     id: 1, 
     name: 'Datos Generales', 
     component: Step1_DatosGenerales,
     icon: '📋',
-    description: 'Información básica y asignaciones'
+    description: 'Información básica'
   },
   { 
     id: 2, 
-    name: 'Datos Específicos', 
-    component: Step2_Condicionales,
-    icon: '💼',
-    description: 'Según tipo de renta o venta'
+    name: 'Ubicación', 
+    component: Step2_Ubicacion,
+    icon: '📍',
+    description: 'Dirección y complejo'
   },
   { 
     id: 3, 
@@ -30,6 +31,13 @@ const WIZARD_STEPS = [
     component: Step3_Espacios,
     icon: '🏠',
     description: 'Habitaciones, baños y áreas'
+  },
+  { 
+    id: 4, 
+    name: 'Datos Específicos', 
+    component: Step4_Condicionales,
+    icon: '💼',
+    description: 'Asignaciones y precios'
   }
 ];
 
@@ -63,6 +71,19 @@ export default function WizardContainer({
     propietario_id: '',
     supervisor_id: '',
     
+    // Ubicación
+    calle: '',
+    colonia: '',
+    codigo_postal: '',
+    ciudad: '',
+    estado: '',
+    pais: '',
+    referencias: '',
+    google_maps_link: '',
+    es_complejo: false,
+    nombre_complejo: '',
+    amenidades_complejo: [],
+    
     // Condicionales - Renta largo plazo
     inquilino_id: '',
     fecha_inicio_contrato: '',
@@ -90,34 +111,19 @@ export default function WizardContainer({
     const errors: string[] = [];
 
     switch (step) {
-      case 1: // Datos Generales (Básicos + Asignaciones)
+      case 1: // Datos Generales - SOLO nombre es obligatorio
         if (!formData.nombre_propiedad?.trim()) {
           errors.push('El nombre de la propiedad es obligatorio');
         }
-        if (formData.estados.length === 0) {
-          errors.push('Debes seleccionar al menos un estado (Renta largo plazo, Renta vacacional o Venta)');
-        }
-        if (!formData.propietario_id) {
-          errors.push('Debes seleccionar un propietario');
-        }
         break;
         
-      case 2: // Condicionales
-        if (formData.estados.includes('Renta largo plazo') && !formData.costo_renta_mensual) {
-          errors.push('El costo de renta mensual es obligatorio para Renta largo plazo');
-        }
-        if (formData.estados.includes('Renta vacacional') && !formData.precio_noche) {
-          errors.push('El precio por noche es obligatorio para Renta vacacional');
-        }
-        if (formData.estados.includes('Venta') && !formData.precio_venta) {
-          errors.push('El precio de venta es obligatorio');
-        }
+      case 2: // Ubicación - TODO opcional por ahora
         break;
         
-      case 3: // Espacios
-        if (formData.espacios.length === 0) {
-          errors.push('Debes agregar al menos un espacio (habitación, baño, etc.)');
-        }
+      case 3: // Espacios - TODO opcional por ahora
+        break;
+        
+      case 4: // Datos Específicos - TODO opcional por ahora
         break;
     }
 
@@ -214,21 +220,13 @@ export default function WizardContainer({
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 font-poppins mb-2">
-            Nueva Propiedad
-          </h1>
-          <p className="text-gray-600 font-roboto">
-            Completa todos los pasos para registrar tu propiedad
-          </p>
-        </div>
 
         {/* Barra de progreso */}
         <WizardProgress 
           steps={WIZARD_STEPS}
           currentStep={currentStep}
           onStepClick={goToStep}
+          formData={formData}
         />
 
         {/* Contenido del paso actual */}

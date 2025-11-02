@@ -2,8 +2,7 @@
 
 import React from 'react';
 import { PropertyFormData } from '@/types/property';
-import Input from '@/components/ui/Input';
-import ContactSelector from '../components/ContactSelector';
+import Input from '@/components/ui/input';
 
 interface Step1Props {
   data: PropertyFormData;
@@ -17,13 +16,19 @@ const TIPOS_PROPIEDAD = [
   'Condominio',
   'Penthouse',
   'Loft',
-  'Estudio'
+  'Estudio',
+  'Oficina',
+  'Local comercial',
+  'Bodega'
 ];
 
 const ESTADOS_PROPIEDAD = [
   'Renta largo plazo',
   'Renta vacacional',
-  'Venta'
+  'Venta',
+  'Mantenimiento',
+  'Suspendido',
+  'Propietario'
 ];
 
 const OPCIONES_MOBILIARIO = [
@@ -46,16 +51,15 @@ export default function Step1_DatosGenerales({ data, onUpdate }: Step1Props) {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-8">
-      {/* SECCIÓN: DATOS BÁSICOS */}
+      {/* SECCIÓN: BÁSICOS */}
       <div>
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-900 font-poppins flex items-center gap-2">
-            <span>📋</span>
-            Datos Básicos
+            <svg className="w-6 h-6 text-ras-azul" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Básicos</span>
           </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Información general de la propiedad
-          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -67,7 +71,7 @@ export default function Step1_DatosGenerales({ data, onUpdate }: Step1Props) {
               type="text"
               value={data.nombre_propiedad}
               onChange={(e) => handleChange('nombre_propiedad', e.target.value)}
-              placeholder="Ej: Departamento Vista Mar"
+              placeholder="Ej: Departamento Laguna 305"
               required
             />
           </div>
@@ -75,7 +79,7 @@ export default function Step1_DatosGenerales({ data, onUpdate }: Step1Props) {
           {/* Tipo de propiedad */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Tipo de propiedad <span className="text-red-500">*</span>
+              Tipo de propiedad
             </label>
             <select
               value={data.tipo_propiedad}
@@ -91,7 +95,7 @@ export default function Step1_DatosGenerales({ data, onUpdate }: Step1Props) {
           {/* Mobiliario */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Mobiliario <span className="text-red-500">*</span>
+              Mobiliario
             </label>
             <select
               value={data.mobiliario}
@@ -102,50 +106,6 @@ export default function Step1_DatosGenerales({ data, onUpdate }: Step1Props) {
                 <option key={opcion} value={opcion}>{opcion}</option>
               ))}
             </select>
-          </div>
-
-          {/* Estados */}
-          <div className="md:col-span-2">
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Estado de la propiedad <span className="text-red-500">*</span>
-            </label>
-            <div className="flex flex-wrap gap-3">
-              {ESTADOS_PROPIEDAD.map(estado => (
-                <label
-                  key={estado}
-                  className={`
-                    flex items-center gap-2 px-4 py-3 rounded-lg border-2 cursor-pointer transition-all
-                    ${data.estados.includes(estado)
-                      ? 'border-ras-azul bg-ras-azul/5 text-ras-azul'
-                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
-                    }
-                  `}
-                >
-                  <input
-                    type="checkbox"
-                    checked={data.estados.includes(estado)}
-                    onChange={() => toggleEstado(estado)}
-                    className="rounded text-ras-azul focus:ring-ras-azul"
-                  />
-                  <span className="text-sm font-medium">{estado}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Puedes seleccionar múltiples estados si la propiedad está disponible para diferentes opciones
-            </p>
-          </div>
-
-          {/* Capacidad de personas */}
-          <div>
-            <Input
-              id="capacidad_personas"
-              label="Capacidad de personas"
-              type="number"
-              value={data.capacidad_personas}
-              onChange={(e) => handleChange('capacidad_personas', e.target.value)}
-              placeholder="Ej: 6"
-            />
           </div>
 
           {/* Tamaño del terreno */}
@@ -165,7 +125,7 @@ export default function Step1_DatosGenerales({ data, onUpdate }: Step1Props) {
               <select
                 value={data.tamano_terreno_unit}
                 onChange={(e) => handleChange('tamano_terreno_unit', e.target.value)}
-                className="w-24 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul"
+                className="w-20 px-2 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul focus:border-transparent font-roboto"
               >
                 <option value="m²">m²</option>
                 <option value="ft²">ft²</option>
@@ -190,76 +150,41 @@ export default function Step1_DatosGenerales({ data, onUpdate }: Step1Props) {
               <select
                 value={data.tamano_construccion_unit}
                 onChange={(e) => handleChange('tamano_construccion_unit', e.target.value)}
-                className="w-24 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul"
+                className="w-20 px-2 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul focus:border-transparent font-roboto"
               >
                 <option value="m²">m²</option>
                 <option value="ft²">ft²</option>
               </select>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* DIVISOR */}
-      <div className="border-t border-gray-200"></div>
-
-      {/* SECCIÓN: ASIGNACIONES */}
-      <div>
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-gray-900 font-poppins flex items-center gap-2">
-            <span>👥</span>
-            Asignaciones
-          </h2>
-          <p className="text-sm text-gray-600 mt-1">
-            Propietario y supervisor de la propiedad
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Propietario */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Propietario <span className="text-red-500">*</span>
+          {/* Estado actual */}
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-700 mb-3">
+              Estado actual
             </label>
-            <ContactSelector
-              value={data.propietario_id}
-              onChange={(id) => handleChange('propietario_id', id)}
-              placeholder="Selecciona el propietario"
-              tipo="propietario"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              La persona dueña de la propiedad
-            </p>
-          </div>
-
-          {/* Supervisor */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Supervisor
-            </label>
-            <ContactSelector
-              value={data.supervisor_id}
-              onChange={(id) => handleChange('supervisor_id', id)}
-              placeholder="Selecciona el supervisor"
-              tipo="supervisor"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Persona encargada de la gestión
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Info box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex gap-3">
-          <span className="text-blue-600 text-xl">💡</span>
-          <div className="flex-1">
-            <h4 className="font-semibold text-blue-900 mb-1">Tip</h4>
-            <p className="text-sm text-blue-800">
-              Completa todos los campos obligatorios (marcados con *) antes de continuar al siguiente paso.
-              Los campos opcionales pueden completarse más tarde.
-            </p>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {ESTADOS_PROPIEDAD.map(estado => (
+                <label
+                  key={estado}
+                  className={`
+                    flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition-all
+                    ${data.estados.includes(estado)
+                      ? 'border-ras-azul bg-ras-azul/5 text-ras-azul'
+                      : 'border-gray-200 hover:border-gray-300 text-gray-700'
+                    }
+                  `}
+                >
+                  <input
+                    type="checkbox"
+                    checked={data.estados.includes(estado)}
+                    onChange={() => toggleEstado(estado)}
+                    className="rounded text-ras-azul focus:ring-ras-azul"
+                  />
+                  <span className="text-sm font-medium">{estado}</span>
+                </label>
+              ))}
+            </div>
           </div>
         </div>
       </div>

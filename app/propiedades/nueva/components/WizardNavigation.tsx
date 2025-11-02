@@ -1,6 +1,6 @@
 'use client';
 
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 
 interface WizardNavigationProps {
   currentStep: number;
@@ -59,7 +59,7 @@ export default function WizardNavigation({
                   Guardando...
                 </>
               ) : (
-                <>💾 Guardar Borrador</>
+                <>Guardar Borrador</>
               )}
             </Button>
           )}
@@ -79,7 +79,7 @@ export default function WizardNavigation({
                   Guardando...
                 </>
               ) : (
-                <>✅ Guardar y Publicar</>
+                <>Guardar y Publicar</>
               )}
             </Button>
           ) : (
@@ -108,42 +108,8 @@ export default function WizardNavigation({
             disabled={isLoading}
             className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:border-red-300"
           >
-            ✕ Cancelar
+            Cancelar
           </Button>
-        </div>
-      </div>
-
-      {/* Tips según el paso */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
-        <div className="flex items-start gap-2 text-sm text-gray-600">
-          <span className="text-base">💡</span>
-          <div className="flex-1">
-            {currentStep === 1 && (
-              <p>
-                <strong>Tip:</strong> Los campos marcados con * son obligatorios. Asegúrate de seleccionar al menos un estado.
-              </p>
-            )}
-            {currentStep === 2 && (
-              <p>
-                <strong>Tip:</strong> El propietario es obligatorio. El supervisor es opcional pero recomendado.
-              </p>
-            )}
-            {currentStep === 3 && (
-              <p>
-                <strong>Tip:</strong> Solo necesitas completar los campos del tipo de renta o venta que seleccionaste en Paso 1.
-              </p>
-            )}
-            {currentStep === 4 && (
-              <p>
-                <strong>Tip:</strong> Puedes usar templates rápidos o agregar espacios individualmente. Recuerda agregar baños antes de asignarlos a habitaciones.
-              </p>
-            )}
-            {currentStep === 5 && (
-              <p>
-                <strong>Tip:</strong> La primera foto será la portada. Puedes arrastrar para reordenar y marcar la mejor foto de cada espacio.
-              </p>
-            )}
-          </div>
         </div>
       </div>
     </div>

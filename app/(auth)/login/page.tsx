@@ -4,8 +4,6 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import Input from '@/components/ui/input'
-import Button from '@/components/ui/button'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -35,60 +33,50 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ras-azul to-ras-turquesa flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
-        {/* Logo/Header */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-ras-azul to-ras-turquesa flex items-center justify-center shadow-lg">
-            <svg className="w-10 h-10 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 11.5 12 4l9 7.5M5 10.5V20h14v-9.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+    <div className="min-h-screen bg-gradient-to-br from-[#00768E] to-[#00CC99] flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
+        <h1 className="text-3xl font-bold text-[#00768E] mb-6 text-center">RAS</h1>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg"
+              required
+            />
           </div>
-          <h1 className="text-4xl font-bold text-ras-azul mb-2 font-poppins">RAS</h1>
-          <p className="text-gray-600 font-roboto">Realty Administration Software</p>
-        </div>
 
-        <form onSubmit={handleLogin} className="space-y-5">
-          <Input
-            type="email"
-            label="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="tu@email.com"
-            required
-          />
+          <div>
+            <label className="block text-sm font-medium mb-2">Contraseña</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-2 border rounded-lg"
+              required
+            />
+          </div>
 
-          <Input
-            type="password"
-            label="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            error={error}
-            required
-          />
+          {error && <div className="text-red-600 text-sm">{error}</div>}
 
-          <Button
+          <button
             type="submit"
             disabled={loading}
-            className="w-full"
-            size="lg"
+            className="w-full bg-[#00768E] text-white py-3 rounded-lg font-medium hover:bg-[#005a6d]"
           >
             {loading ? 'Cargando...' : 'Iniciar Sesión'}
-          </Button>
+          </button>
         </form>
 
-        <p className="text-center text-sm text-gray-600 mt-6 font-roboto">
+        <p className="text-center text-sm text-gray-600 mt-6">
           ¿No tienes cuenta?{' '}
-          <Link href="/(auth)/register" className="text-ras-azul font-semibold hover:text-ras-turquesa transition-colors">
+          <Link href="/register" className="text-[#00768E] font-medium">
             Crear cuenta
           </Link>
         </p>
-
-        {/* Footer */}
-        <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-          <p className="text-xs text-gray-400 font-roboto">RAS V_1.0</p>
-        </div>
       </div>
     </div>
   )

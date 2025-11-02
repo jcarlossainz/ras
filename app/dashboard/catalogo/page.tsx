@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import WizardModal from './components/WizardModal'
@@ -17,6 +17,7 @@ interface Propiedad {
   codigo_postal: string | null
   created_at: string
   es_propio: boolean
+  colaboradores?: { user_id: string; nombre: string; email: string }[]
 }
 
 export default function CatalogoPage() {
@@ -27,11 +28,13 @@ export default function CatalogoPage() {
   const [showWizard, setShowWizard] = useState(false)
   const [showCompartir, setShowCompartir] = useState(false)
   const [propiedadSeleccionada, setPropiedadSeleccionada] = useState<Propiedad | null>(null)
+  
+  const draftIdRef = useRef<string | null>(null)
+  const isSavingRef = useRef(false)
 
   useEffect(() => { 
     checkUser()
     
-    // Listener para abrir wizard desde TopBar
     const handleOpenWizard = () => setShowWizard(true)
     window.addEventListener('openWizard', handleOpenWizard)
     
@@ -48,14 +51,12 @@ export default function CatalogoPage() {
   }
 
   const cargarPropiedades = async (userId: string) => {
-    // Cargar propiedades propias
     const { data: propiedadesPropias } = await supabase
       .from('propiedades')
       .select('id, user_id, nombre, codigo_postal, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
     
-    // Cargar propiedades compartidas
     const { data: propiedadesCompartidas } = await supabase
       .from('propiedades_colaboradores')
       .select('propiedad_id')
@@ -75,6 +76,27 @@ export default function CatalogoPage() {
       ...(propiedadesPropias || []).map(p => ({ ...p, es_propio: true })),
       ...(propiedadesCompartidasData || []).map(p => ({ ...p, es_propio: false }))
     ]
+    
+    // Cargar colaboradores
+    for (const prop of todasPropiedades) {
+      const { data: colaboradores } = await supabase
+        .from('propiedades_colaboradores')
+        .select(`
+          user_id,
+          profiles:user_id (
+            nombre:nombre,
+            email:email
+          )
+        `)
+        .eq('propiedad_id', prop.id)
+      
+      prop.colaboradores = colaboradores?.map(c => ({
+        user_id: c.user_id,
+        nombre: c.profiles?.nombre || 'Sin nombre',
+        email: c.profiles?.email || ''
+      })) || []
+    }
+    
     todasPropiedades.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setPropiedades(todasPropiedades)
   }
@@ -88,6 +110,26 @@ export default function CatalogoPage() {
     router.push(`/dashboard/propiedad/${propiedadId}`)
   }
 
+  const abrirGaleria = (propiedadId: string) => {
+    router.push(`/dashboard/propiedad/${propiedadId}/galeria`)
+  }
+
+  const abrirInventario = (propiedadId: string) => {
+    router.push(`/dashboard/propiedad/${propiedadId}/inventario`)
+  }
+
+  const abrirTickets = (propiedadId: string) => {
+    router.push(`/dashboard/propiedad/${propiedadId}/tickets`)
+  }
+
+  const abrirCalendario = (propiedadId: string) => {
+    router.push(`/dashboard/propiedad/${propiedadId}/calendario`)
+  }
+
+  const abrirCuentas = (propiedadId: string) => {
+    router.push(`/dashboard/propiedad/${propiedadId}/cuentas`)
+  }
+
   const editarPropiedad = (propiedadId: string) => {
     alert('Editar propiedad: ' + propiedadId)
   }
@@ -99,18 +141,14 @@ export default function CatalogoPage() {
     }
   }
 
-  // Guardar propiedad desde el wizard
   const handleWizardSave = async (data: PropertyFormData) => {
     if (!user?.id) {
       throw new Error('Usuario no autenticado');
     }
 
     try {
-      // Preparar datos para Supabase
       const propiedadData = {
         user_id: user.id,
-        
-        // Datos básicos
         nombre: data.nombre_propiedad,
         tipo_propiedad: data.tipo_propiedad,
         estados: data.estados,
@@ -120,45 +158,41 @@ export default function CatalogoPage() {
         tamano_terreno_unit: data.tamano_terreno_unit,
         tamano_construccion: data.tamano_construccion ? parseFloat(data.tamano_construccion) : null,
         tamano_construccion_unit: data.tamano_construccion_unit,
-
-        // Asignaciones
         propietario_id: data.propietario_id,
         supervisor_id: data.supervisor_id || null,
-
-        // Condicionales - Renta largo plazo
         inquilino_id: data.inquilino_id || null,
         fecha_inicio_contrato: data.fecha_inicio_contrato || null,
         costo_renta_mensual: data.costo_renta_mensual ? parseFloat(data.costo_renta_mensual) : null,
-
-        // Condicionales - Renta vacacional
         precio_noche: data.precio_noche ? parseFloat(data.precio_noche) : null,
         amenidades_vacacional: data.amenidades_vacacional || [],
-
-        // Condicionales - Venta
         precio_venta: data.precio_venta ? parseFloat(data.precio_venta) : null,
-
-        // Espacios (guardar como JSON)
         espacios: data.espacios,
-
-        // Metadata
         is_draft: false,
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      const { data: propiedad, error } = await supabase
-        .from('propiedades')
-        .insert(propiedadData)
-        .select()
-        .single();
+      if (draftIdRef.current) {
+        const { error } = await supabase
+          .from('propiedades')
+          .update(propiedadData)
+          .eq('id', draftIdRef.current);
+        
+        if (error) throw error;
+      } else {
+        const { data: propiedad, error } = await supabase
+          .from('propiedades')
+          .insert({
+            ...propiedadData,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
+      }
 
-      // Recargar propiedades
+      draftIdRef.current = null;
       cargarPropiedades(user.id);
-      
-      // Opcional: Redirigir al home de la propiedad
-      // router.push(`/dashboard/propiedad/${propiedad.id}`);
       
     } catch (error) {
       console.error('Error al guardar propiedad:', error);
@@ -166,12 +200,18 @@ export default function CatalogoPage() {
     }
   };
 
-  // Guardar borrador desde el wizard
   const handleWizardSaveDraft = async (data: PropertyFormData) => {
     if (!user?.id) {
       console.warn('Usuario no autenticado');
       return;
     }
+
+    if (isSavingRef.current) {
+      console.log('⏳ Ya hay un guardado en proceso, saltando...');
+      return;
+    }
+
+    isSavingRef.current = true;
 
     try {
       const draftData = {
@@ -198,17 +238,43 @@ export default function CatalogoPage() {
         updated_at: new Date().toISOString()
       };
 
-      const { error } = await supabase
-        .from('propiedades')
-        .upsert(draftData);
+      if (draftIdRef.current) {
+        const { error } = await supabase
+          .from('propiedades')
+          .update(draftData)
+          .eq('id', draftIdRef.current);
 
-      if (error) throw error;
+        if (error) throw error;
+        console.log(`✅ Borrador actualizado (ID: ${draftIdRef.current})`);
+      } else {
+        const { data: nuevoBorrador, error } = await supabase
+          .from('propiedades')
+          .insert({
+            ...draftData,
+            created_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
 
-      console.log('✅ Borrador guardado');
+        if (error) throw error;
+        
+        draftIdRef.current = nuevoBorrador.id;
+        console.log(`✅ Nuevo borrador creado (ID: ${nuevoBorrador.id})`);
+      }
 
     } catch (error) {
       console.error('Error al guardar borrador:', error);
+    } finally {
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 500);
     }
+  };
+
+  const handleCloseWizard = () => {
+    draftIdRef.current = null;
+    isSavingRef.current = false;
+    setShowWizard(false);
   };
 
   if (loading) {
@@ -232,7 +298,7 @@ export default function CatalogoPage() {
             {propiedades.map((prop) => (
               <div 
                 key={prop.id} 
-                className="bg-white rounded-2xl shadow-lg border border-gray-200 p-5 hover:shadow-xl transition-all flex items-center gap-5"
+                className="bg-white rounded-2xl shadow-lg border border-gray-200 p-5 hover:shadow-xl transition-all flex items-center gap-4"
               >
                 {/* Foto thumbnail */}
                 <img 
@@ -243,10 +309,11 @@ export default function CatalogoPage() {
 
                 {/* Info de la propiedad */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="text-xl font-bold text-gray-800 font-poppins truncate">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h3 className="text-xl font-bold text-gray-800 font-poppins">
                       {prop.nombre}
                     </h3>
+                    
                     <span 
                       className="text-xs px-2 py-1 rounded-lg font-semibold flex-shrink-0" 
                       style={{ 
@@ -256,27 +323,116 @@ export default function CatalogoPage() {
                     >
                       {prop.es_propio ? '🏠 Propio' : '👥 Compartido'}
                     </span>
+
+                    {/* Colaboradores */}
+                    {prop.colaboradores && prop.colaboradores.length > 0 && (
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-gray-400">•</span>
+                        <div className="flex -space-x-2">
+                          {prop.colaboradores.slice(0, 3).map((colab) => (
+                            <div
+                              key={colab.user_id}
+                              className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white"
+                              title={`${colab.nombre} (${colab.email})`}
+                            >
+                              {colab.nombre.charAt(0).toUpperCase()}
+                            </div>
+                          ))}
+                          {prop.colaboradores.length > 3 && (
+                            <div className="w-6 h-6 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white">
+                              +{prop.colaboradores.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   
-                  <div className="text-sm text-gray-500 font-roboto space-y-1">
+                  <div className="text-sm text-gray-500 font-roboto">
                     {prop.codigo_postal && (
-                      <div>📍 CP: {prop.codigo_postal}</div>
+                      <span>📍 CP: {prop.codigo_postal}</span>
                     )}
-                    <div className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 ml-3">
                       ID: {prop.id.slice(0, 8)}...
-                    </div>
+                    </span>
                   </div>
                 </div>
 
-                {/* Botones de acción */}
-                <div className="flex gap-3 flex-shrink-0">
-                  {/* Botón Compartir */}
+                {/* Todos los botones en una sola fila horizontal */}
+                <div className="flex gap-2 flex-shrink-0">
+                  {/* Galería */}
+                  <button
+                    onClick={() => abrirGaleria(prop.id)}
+                    className="w-10 h-10 rounded-lg border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 hover:border-pink-400 transition-all flex items-center justify-center group"
+                    title="Galería"
+                  >
+                    <svg className="w-5 h-5 text-pink-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/>
+                      <circle cx="8.5" cy="8.5" r="1.5"/>
+                      <path d="M21 15l-5-5L5 21"/>
+                    </svg>
+                  </button>
+
+                  {/* Inventario */}
+                  <button
+                    onClick={() => abrirInventario(prop.id)}
+                    className="w-10 h-10 rounded-lg border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 transition-all flex items-center justify-center group"
+                    title="Inventario"
+                  >
+                    <svg className="w-5 h-5 text-amber-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                      <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                  </button>
+
+                  {/* Tickets */}
+                  <button
+                    onClick={() => abrirTickets(prop.id)}
+                    className="w-10 h-10 rounded-lg border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-400 transition-all flex items-center justify-center group"
+                    title="Tickets"
+                  >
+                    <svg className="w-5 h-5 text-orange-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="9" y1="15" x2="15" y2="15"/>
+                      <line x1="9" y1="12" x2="12" y2="12"/>
+                    </svg>
+                  </button>
+
+                  {/* Calendario */}
+                  <button
+                    onClick={() => abrirCalendario(prop.id)}
+                    className="w-10 h-10 rounded-lg border-2 border-cyan-200 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400 transition-all flex items-center justify-center group"
+                    title="Calendario"
+                  >
+                    <svg className="w-5 h-5 text-cyan-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                  </button>
+
+                  {/* Cuentas */}
+                  <button
+                    onClick={() => abrirCuentas(prop.id)}
+                    className="w-10 h-10 rounded-lg border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 transition-all flex items-center justify-center group"
+                    title="Cuentas"
+                  >
+                    <svg className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="12" y1="1" x2="12" y2="23"/>
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                    </svg>
+                  </button>
+
+                  {/* Compartir */}
                   <button
                     onClick={() => abrirCompartir(prop)}
-                    className="w-12 h-12 rounded-xl border-2 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 transition-all flex items-center justify-center group"
+                    className="w-10 h-10 rounded-lg border-2 border-purple-200 bg-purple-50 hover:bg-purple-100 hover:border-purple-400 transition-all flex items-center justify-center group"
                     title="Compartir"
                   >
-                    <svg className="w-6 h-6 text-purple-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="w-5 h-5 text-purple-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="18" cy="5" r="3"/>
                       <circle cx="6" cy="12" r="3"/>
                       <circle cx="18" cy="19" r="3"/>
@@ -285,24 +441,25 @@ export default function CatalogoPage() {
                     </svg>
                   </button>
 
-                  {/* Botón Home */}
+                  {/* Home */}
                   <button
                     onClick={() => abrirHome(prop.id)}
-                    className="w-12 h-12 rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition-all flex items-center justify-center group"
+                    className="w-10 h-10 rounded-lg border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 transition-all flex items-center justify-center group"
                     title="Ver Home"
                   >
-                    <svg className="w-6 h-6 text-blue-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M3 11.5 12 4l9 7.5M5 10.5V20h14v-9.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <svg className="w-5 h-5 text-blue-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                      <polyline points="9 22 9 12 15 12 15 22"/>
                     </svg>
                   </button>
 
-                  {/* Botón Editar */}
+                  {/* Editar */}
                   <button
                     onClick={() => editarPropiedad(prop.id)}
-                    className="w-12 h-12 rounded-xl border-2 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-400 transition-all flex items-center justify-center group"
+                    className="w-10 h-10 rounded-lg border-2 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-400 transition-all flex items-center justify-center group"
                     title="Editar"
                   >
-                    <svg className="w-6 h-6 text-green-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="w-5 h-5 text-green-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                       <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                     </svg>
@@ -315,7 +472,8 @@ export default function CatalogoPage() {
           <EmptyState 
             icon={
               <svg className="w-12 h-12 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 11.5 12 4l9 7.5M5 10.5V20h14v-9.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
             }
             title="No tienes propiedades"
@@ -333,6 +491,7 @@ export default function CatalogoPage() {
           onClose={() => {
             setShowCompartir(false)
             setPropiedadSeleccionada(null)
+            if (user?.id) cargarPropiedades(user.id)
           }}
           propiedadId={propiedadSeleccionada.id}
           propiedadNombre={propiedadSeleccionada.nombre}
@@ -341,10 +500,10 @@ export default function CatalogoPage() {
         />
       )}
 
-      {/* Wizard Modal - NUEVO WIZARD LIMPIO */}
+      {/* Wizard Modal */}
       <WizardModal
         isOpen={showWizard}
-        onClose={() => setShowWizard(false)}
+        onClose={handleCloseWizard}
         onSave={handleWizardSave}
         onSaveDraft={handleWizardSaveDraft}
       />

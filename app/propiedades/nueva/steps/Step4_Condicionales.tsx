@@ -2,10 +2,10 @@
 
 import React from 'react';
 import { PropertyFormData } from '@/types/property';
-import Input from '@/components/ui/Input';
+import Input from '@/components/ui/input';
 import ContactSelector from '../components/ContactSelector';
 
-interface Step2Props {
+interface Step4Props {
   data: PropertyFormData;
   onUpdate: (data: Partial<PropertyFormData>) => void;
 }
@@ -28,7 +28,7 @@ const AMENIDADES_VACACIONAL = [
   'Pet friendly'
 ];
 
-export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
+export default function Step4_Condicionales({ data, onUpdate }: Step4Props) {
   const handleChange = (field: keyof PropertyFormData, value: any) => {
     onUpdate({ [field]: value });
   };
@@ -50,8 +50,8 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
                 <span className="text-2xl">🏠</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Renta Largo Plazo</h3>
-                <p className="text-sm text-gray-600">Contratos anuales o por periodos extendidos</p>
+                <h3 className="font-bold text-gray-900 font-poppins">Renta Largo Plazo</h3>
+                <p className="text-sm text-gray-600">Información para contratos de renta tradicional</p>
               </div>
             </div>
 
@@ -68,23 +68,23 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
                   tipo="inquilino"
                 />
                 <p className="text-xs text-gray-500 mt-1">
-                  Déjalo vacío si la propiedad está disponible
+                  Opcional: Persona que actualmente renta la propiedad
                 </p>
               </div>
 
-              {/* Fecha inicio contrato */}
+              {/* Fecha de inicio de contrato */}
               <div>
                 <Input
                   id="fecha_inicio_contrato"
-                  label="Fecha de inicio del contrato"
+                  label="Fecha de inicio de contrato"
                   type="date"
                   value={data.fecha_inicio_contrato}
                   onChange={(e) => handleChange('fecha_inicio_contrato', e.target.value)}
                 />
               </div>
 
-              {/* Costo renta mensual */}
-              <div>
+              {/* Costo de renta mensual */}
+              <div className="md:col-span-2">
                 <Input
                   id="costo_renta_mensual"
                   label="Costo de renta mensual"
@@ -92,7 +92,6 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
                   value={data.costo_renta_mensual}
                   onChange={(e) => handleChange('costo_renta_mensual', e.target.value)}
                   placeholder="Ej: 15000"
-                  required
                   prefix="$"
                 />
               </div>
@@ -108,39 +107,38 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
                 <span className="text-2xl">🏖️</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Renta Vacacional</h3>
-                <p className="text-sm text-gray-600">Rentas por noche o periodos cortos</p>
+                <h3 className="font-bold text-gray-900 font-poppins">Renta Vacacional</h3>
+                <p className="text-sm text-gray-600">Información para rentas por noche</p>
               </div>
             </div>
 
             <div className="space-y-6">
               {/* Precio por noche */}
-              <div className="max-w-md">
+              <div>
                 <Input
                   id="precio_noche"
                   label="Precio por noche"
                   type="number"
                   value={data.precio_noche}
                   onChange={(e) => handleChange('precio_noche', e.target.value)}
-                  placeholder="Ej: 2500"
-                  required
+                  placeholder="Ej: 1500"
                   prefix="$"
                 />
               </div>
 
-              {/* Amenidades */}
+              {/* Amenidades vacacional */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Amenidades incluidas
+                  Amenidades
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {AMENIDADES_VACACIONAL.map(amenidad => (
                     <label
                       key={amenidad}
                       className={`
-                        flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all
+                        flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition-all
                         ${data.amenidades_vacacional?.includes(amenidad)
-                          ? 'border-ras-turquesa bg-ras-turquesa/5 text-ras-turquesa'
+                          ? 'border-ras-azul bg-ras-azul/5 text-ras-azul'
                           : 'border-gray-200 hover:border-gray-300 text-gray-700'
                         }
                       `}
@@ -149,9 +147,9 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
                         type="checkbox"
                         checked={data.amenidades_vacacional?.includes(amenidad)}
                         onChange={() => toggleAmenidad(amenidad)}
-                        className="rounded text-ras-turquesa focus:ring-ras-turquesa"
+                        className="rounded text-ras-azul focus:ring-ras-azul"
                       />
-                      <span className="text-xs font-medium">{amenidad}</span>
+                      <span className="text-sm font-medium">{amenidad}</span>
                     </label>
                   ))}
                 </div>
@@ -164,16 +162,16 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
         return (
           <div key={estado} className="space-y-6">
             <div className="flex items-center gap-3 pb-4 border-b border-gray-200">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
                 <span className="text-2xl">💰</span>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Venta</h3>
-                <p className="text-sm text-gray-600">Propiedad en venta</p>
+                <h3 className="font-bold text-gray-900 font-poppins">Venta</h3>
+                <p className="text-sm text-gray-600">Precio de venta de la propiedad</p>
               </div>
             </div>
 
-            <div className="max-w-md">
+            <div>
               <Input
                 id="precio_venta"
                 label="Precio de venta"
@@ -181,7 +179,6 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
                 value={data.precio_venta}
                 onChange={(e) => handleChange('precio_venta', e.target.value)}
                 placeholder="Ej: 3500000"
-                required
                 prefix="$"
               />
             </div>
@@ -195,15 +192,63 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
 
   return (
     <div className="space-y-6">
+      {/* SECCIÓN: ASIGNACIONES */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-gray-900 font-poppins flex items-center gap-2">
+            <span>👥</span>
+            Asignaciones
+          </h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Propietario y supervisor de la propiedad
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Propietario */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Propietario
+            </label>
+            <ContactSelector
+              value={data.propietario_id}
+              onChange={(id) => handleChange('propietario_id', id)}
+              placeholder="Selecciona el propietario"
+              tipo="propietario"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              La persona dueña de la propiedad
+            </p>
+          </div>
+
+          {/* Supervisor */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Supervisor
+            </label>
+            <ContactSelector
+              value={data.supervisor_id}
+              onChange={(id) => handleChange('supervisor_id', id)}
+              placeholder="Selecciona el supervisor"
+              tipo="supervisor"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Persona encargada de la gestión
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* SECCIÓN: DATOS CONDICIONALES SEGÚN ESTADO */}
       {data.estados.length === 0 ? (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
           <div className="flex gap-3">
             <span className="text-yellow-600 text-2xl">⚠️</span>
             <div>
               <h3 className="font-bold text-yellow-900 mb-1">No hay estados seleccionados</h3>
               <p className="text-sm text-yellow-800">
-                Regresa al paso anterior y selecciona al menos un estado 
-                (Renta largo plazo, Renta vacacional o Venta) para continuar.
+                Regresa al Paso 1 y selecciona al menos un estado 
+                (Renta largo plazo, Renta vacacional, Venta, etc.) para continuar.
               </p>
             </div>
           </div>
@@ -223,8 +268,8 @@ export default function Step2_Condicionales({ data, onUpdate }: Step2Props) {
               <div className="flex-1">
                 <h4 className="font-semibold text-blue-900 mb-1">Información contextual</h4>
                 <p className="text-sm text-blue-800">
-                  Los datos que completes aquí dependen de los estados que seleccionaste en el paso anterior.
-                  Completa todos los campos obligatorios antes de continuar.
+                  Los campos que ves aquí dependen de los estados que seleccionaste en el Paso 1.
+                  Todos los campos son opcionales por ahora.
                 </p>
               </div>
             </div>

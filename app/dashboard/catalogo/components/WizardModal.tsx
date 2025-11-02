@@ -98,28 +98,23 @@ export default function WizardModal({
         `}
       >
         {/* Header flotante con botón cerrar */}
-        <div className="sticky top-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <div className="sticky top-0 z-10 bg-gradient-to-b from-ras-azul/70 to-ras-turquesa/70 backdrop-blur-md border-b border-white/10 shadow-lg">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-ras-azul/10 flex items-center justify-center">
-                <svg className="w-6 h-6 text-ras-azul" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 11.5 12 4l9 7.5M5 10.5V20h14v-9.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Nueva Propiedad</h2>
-                <p className="text-xs text-gray-500">Completa los 3 pasos del formulario</p>
+                <h2 className="text-lg font-bold text-white">Nueva Propiedad</h2>
+                <p className="text-xs text-white/80">Completa los 3 pasos del formulario</p>
               </div>
             </div>
 
             {/* Botón cerrar */}
             <button
               onClick={handleClose}
-              className="w-10 h-10 rounded-full border-2 border-gray-200 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all flex items-center justify-center group"
+              className="w-10 h-10 rounded-full border-2 border-white/30 bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center group"
               aria-label="Cerrar"
             >
               <svg 
-                className="w-5 h-5 text-gray-600 group-hover:text-gray-900 transition-colors" 
+                className="w-5 h-5 text-white transition-colors" 
                 viewBox="0 0 24 24" 
                 fill="none" 
                 stroke="currentColor" 

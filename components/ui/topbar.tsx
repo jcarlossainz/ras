@@ -31,7 +31,7 @@ export default function TopBar({
 
   return (
     <>
-      <div className="sticky top-0 z-50 bg-gradient-to-b from-ras-azul to-ras-turquesa border-b border-opacity-20 shadow-lg">
+      <div className="sticky top-0 z-50 bg-gradient-to-b from-ras-azul/95 to-ras-turquesa/50 backdrop-blur-md border-b border-white/10 shadow-lg">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           
           {/* Botón Atrás */}

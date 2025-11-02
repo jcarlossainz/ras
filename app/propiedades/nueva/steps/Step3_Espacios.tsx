@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { PropertyFormData, Space } from '@/types/property';
-import Button from '@/components/ui/Button';
+import Button from '@/components/ui/button';
 import SpaceCard from '../components/SpaceCard';
 import SpaceCategories from '../components/SpaceCategories';
 import SpaceTemplates from '../components/SpaceTemplates';
