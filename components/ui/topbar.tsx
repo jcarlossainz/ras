@@ -38,7 +38,7 @@ export default function TopBar({
           {showBackButton && (
             <button 
               onClick={() => router.back()} 
-              className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+              className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110"
               aria-label="Volver"
             >
               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -52,7 +52,7 @@ export default function TopBar({
             <div className="relative">
               <button
                 onClick={() => setShowDropdown(!showDropdown)}
-                className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+                className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110"
                 aria-label="Crear nuevo"
               >
                 <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -117,7 +117,7 @@ export default function TopBar({
           {showUserInfo && (
             <button 
               onClick={() => router.push('/perfil')}
-              className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+              className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110"
               aria-label="Configuración"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -131,7 +131,7 @@ export default function TopBar({
           {showUserInfo && onLogout && (
             <button 
               onClick={onLogout}
-              className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"
+              className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110"
               aria-label="Cerrar sesión"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

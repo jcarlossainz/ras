@@ -82,33 +82,35 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {CATEGORIES.map((category) => (
         <div
           key={category.id}
-          className="border border-gray-200 rounded-xl p-4 bg-gradient-to-br from-white to-gray-50"
+          className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-all"
         >
-          {/* Category Header */}
-          <div className="flex items-center gap-3 mb-3 pb-2 border-b-2 border-gray-200">
-            <div className="text-ras-azul">
-              {category.icon}
+          {/* Header de la columna */}
+          <div className="p-4 bg-gradient-to-br from-ras-azul/5 to-ras-turquesa/5 border-b border-gray-200 rounded-t-xl">
+            <div className="flex items-center gap-3">
+              <div className="text-ras-azul">
+                {category.icon}
+              </div>
+              <h4 className="font-bold text-gray-900 text-sm">
+                {category.name}
+              </h4>
             </div>
-            <h4 className="font-bold text-gray-900 font-poppins">
-              {category.name}
-            </h4>
           </div>
 
-          {/* Space Buttons */}
-          <div className="flex flex-wrap gap-2">
+          {/* Botones de espacios - siempre visibles */}
+          <div className="p-3 space-y-2">
             {category.spaces.map((spaceType) => (
               <button
                 key={spaceType}
                 type="button"
                 onClick={() => handleSelectType(spaceType)}
-                className={`inline-flex items-center gap-2 px-3 py-2 bg-white border rounded-lg text-sm font-medium transition-all duration-150 hover:shadow-sm ${
+                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   spaceType === 'Otro'
                     ? 'border-2 border-dashed border-gray-300 hover:border-ras-azul hover:bg-ras-azul/5 text-gray-600 hover:text-ras-azul'
-                    : 'border-ras-azul/30 text-ras-azul hover:bg-ras-azul/5 hover:border-ras-azul/50'
+                    : 'bg-gray-50 hover:bg-ras-azul text-gray-700 hover:text-white border border-transparent hover:border-ras-azul'
                 }`}
               >
                 {spaceType === 'Otro' ? '+ Otro' : spaceType}
@@ -118,11 +120,11 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
 
           {/* Input para "Otro" - solo en la categoría Adicionales */}
           {category.id === 'adicionales' && mostrarInputOtro && (
-            <div className="mt-3 pt-3 border-t border-gray-200">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Especifica el tipo de espacio
+            <div className="px-3 pb-3 pt-2 border-t border-gray-100">
+              <label className="block text-xs font-semibold text-gray-700 mb-2">
+                Especifica el tipo
               </label>
-              <div className="flex gap-2">
+              <div className="space-y-2">
                 <input
                   type="text"
                   value={nombreOtro}
@@ -133,27 +135,29 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
                       handleAgregarOtro();
                     }
                   }}
-                  placeholder="Ej: Estudio, Biblioteca, Sala de juegos..."
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
+                  placeholder="Ej: Estudio, Biblioteca..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
                   autoFocus
                 />
-                <button
-                  type="button"
-                  onClick={handleAgregarOtro}
-                  className="px-4 py-2 bg-ras-azul text-white rounded-lg hover:bg-opacity-90 transition-all text-sm font-semibold"
-                >
-                  Agregar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMostrarInputOtro(false);
-                    setNombreOtro('');
-                  }}
-                  className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-sm"
-                >
-                  ✕
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleAgregarOtro}
+                    className="flex-1 px-3 py-1.5 bg-ras-azul text-white rounded-lg hover:bg-opacity-90 transition-all text-xs font-semibold"
+                  >
+                    Agregar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMostrarInputOtro(false);
+                      setNombreOtro('');
+                    }}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             </div>
           )}

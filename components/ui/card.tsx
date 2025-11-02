@@ -1,48 +1,26 @@
-import React from 'react'
-
 interface CardProps {
   title: string
   icon: React.ReactNode
   onClick?: () => void
-  badge?: string
-  badgeColor?: 'green' | 'gray'
-  className?: string
 }
 
-export default function Card({ 
-  title, 
-  icon, 
-  onClick, 
-  badge, 
-  badgeColor = 'gray',
-  className = '' 
-}: CardProps) {
-  
-  const badgeColors = {
-    green: 'bg-green-50 text-green-600',
-    gray: 'bg-gray-100 text-gray-600'
-  }
-  
+export default function Card({ title, icon, onClick }: CardProps) {
   return (
-    <button 
+    <div
       onClick={onClick}
-      className={`group aspect-square bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200 hover:shadow-xl hover:-translate-y-1 transition-all p-6 flex flex-col items-center justify-center gap-4 relative ${className}`}
+      className="group relative bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-visible"
     >
-      {badge && (
-        <div 
-          className={`absolute top-3 right-3 text-xs px-2 py-1 rounded-lg font-semibold ${badgeColors[badgeColor]}`}
-        >
-          {badge}
+      <div className="p-5 flex flex-col items-center gap-3">
+        {/* Contenedor del ícono con efecto hover moderado */}
+        <div className="transition-transform duration-400 ease-out group-hover:scale-[1.3]">
+          {icon}
         </div>
-      )}
-      
-      <div className="group-hover:scale-110 transition-transform">
-        {icon}
+        
+        {/* Título */}
+        <h3 className="text-base font-semibold text-gray-800 text-center">
+          {title}
+        </h3>
       </div>
-      
-      <span className="text-2xl font-bold text-gray-800 font-poppins text-center">
-        {title}
-      </span>
-    </button>
+    </div>
   )
 }

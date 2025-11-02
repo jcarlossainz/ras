@@ -122,7 +122,7 @@ const SpaceDetails: React.FC<{
         return [...common, 'Muebles de exterior', 'Asador', 'Fogata', 'Jacuzzi', 'Pérgola', 'Sombrilla', 'Iluminación exterior'];
       
       case 'Alberca':
-        return [...common, 'Climatizada', 'Infinity pool', 'Jacuzzi integrado', 'Regaderas exteriores', 'Camastros', 'Bar de alberca'];
+        return ['Accesible con silla de ruedas', 'Climatizada', 'Infinity pool', 'Regaderas exteriores', 'Camastros', 'Jacuzzi integrado', 'Bar de alberca'];
       
       case 'Cuarto de lavado':
         return [...common, 'Lavadora', 'Secadora', 'Tendedero', 'Plancha', 'Mesa para planchar', 'Tarja'];
@@ -221,6 +221,9 @@ const SpaceDetails: React.FC<{
   // Renderizado especial para HABITACIONES
   const isHabitacion = space.type === 'Habitación' || space.type === 'Lock-off' || space.type === 'Cuarto de servicio';
   
+  // Renderizado especial para ALBERCA
+  const isAlberca = space.type === 'Alberca';
+  
   return (
     <div className="space-y-4">
       {/* SECCIÓN ESPECIAL PARA HABITACIONES */}
@@ -230,192 +233,212 @@ const SpaceDetails: React.FC<{
             Configuración de Habitación
           </h4>
 
-          {/* Agregar Camas */}
+          {/* Lista de camas agregadas */}
+          {(space.details.camas || []).length > 0 && (
+            <div className="space-y-2 mb-3">
+              {(space.details.camas || []).map((cama: any) => (
+                <div 
+                  key={cama.id}
+                  className="flex items-center justify-between bg-white border border-blue-200 rounded-lg px-3 py-2"
+                >
+                  <span className="text-sm font-medium text-gray-800">{cama.tipo}</span>
+                  <button
+                    type="button"
+                    onClick={() => eliminarCama(cama.id)}
+                    className="text-red-600 hover:text-red-700 text-sm font-semibold"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Agregar cama y Ocupantes + Baño privado */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Camas
+              Agregar cama
             </label>
-            
-            {/* Lista de camas agregadas */}
-            {(space.details.camas || []).length > 0 && (
-              <div className="space-y-2 mb-3">
-                {(space.details.camas || []).map((cama: any) => (
-                  <div 
-                    key={cama.id}
-                    className="flex items-center justify-between bg-white border border-blue-200 rounded-lg px-3 py-2"
-                  >
-                    <span className="text-sm font-medium text-gray-800">{cama.tipo}</span>
-                    <button
-                      type="button"
-                      onClick={() => eliminarCama(cama.id)}
-                      className="text-red-600 hover:text-red-700 text-sm font-semibold"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            <select
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm mb-3"
+              onChange={(e) => {
+                if (e.target.value) {
+                  agregarCama(e.target.value);
+                  e.target.value = '';
+                }
+              }}
+            >
+              <option value="">Seleccionar tipo...</option>
+              {tiposCama.map(tipo => (
+                <option key={tipo} value={tipo}>{tipo}</option>
+              ))}
+            </select>
+          </div>
 
-            {/* Selector para agregar nueva cama */}
-            <div className="flex gap-2">
-              <select
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
-                onChange={(e) => {
-                  if (e.target.value) {
-                    agregarCama(e.target.value);
-                    e.target.value = '';
-                  }
-                }}
-              >
-                <option value="">Agregar cama...</option>
-                {tiposCama.map(tipo => (
-                  <option key={tipo} value={tipo}>{tipo}</option>
-                ))}
-              </select>
+          {/* Ocupantes y Baño privado en la misma fila */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Ocupantes */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Cantidad de ocupantes
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={space.details.capacidadPersonas || ''}
+                onChange={(e) => updateDetail('capacidadPersonas', parseInt(e.target.value) || '')}
+                placeholder="Ej: 2"
+                className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm bg-white"
+              />
             </div>
 
-            {/* Capacidad sugerida */}
-            {(space.details.camas || []).length > 0 && (
-              <div className="mt-2 p-2 bg-white border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-700">
-                  💡 Capacidad sugerida según camas: {(() => {
-                    const { min, max } = calcularCapacidadCamas();
-                    return min === max ? `${min} persona${min !== 1 ? 's' : ''}` : `${min}-${max} personas`;
-                  })()}
-                </p>
-              </div>
-            )}
+            {/* Baño Privado - Checkbox */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Baño privado
+              </label>
+              <label className="flex items-center gap-3 px-3 py-2 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-ras-azul transition-all h-[42px]">
+                <input
+                  type="checkbox"
+                  checked={space.details.banoPrivado || false}
+                  onChange={(e) => {
+                    updateDetail('banoPrivado', e.target.checked);
+                    if (!e.target.checked) {
+                      updateDetail('banoPrivadoId', null);
+                    }
+                  }}
+                  className="w-5 h-5 text-ras-azul focus:ring-ras-azul rounded"
+                />
+                <span className="text-sm font-medium text-gray-700">Tiene baño propio</span>
+              </label>
+            </div>
           </div>
 
-          {/* Ocupantes */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Cantidad de ocupantes
-            </label>
-            <input
-              type="number"
-              min="1"
-              value={space.details.capacidadPersonas || ''}
-              onChange={(e) => updateDetail('capacidadPersonas', parseInt(e.target.value) || '')}
-              placeholder="Número de personas que pueden ocupar"
-              className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm bg-white"
-            />
-            <p className="text-xs text-gray-600 mt-1">
-              Indica cuántas personas pueden ocupar esta habitación
-            </p>
-          </div>
+          {/* Selector de baño (solo si baño privado está marcado) */}
+          {space.details.banoPrivado && (
+            <div className="space-y-3">
+              {(() => {
+                // Filtrar solo baños de la propiedad
+                const banosDisponibles = allSpaces.filter(s => 
+                  s.type === 'Baño completo' || s.type === 'Medio baño'
+                );
 
-          {/* Baño Privado - Sistema Avanzado */}
-          <div className="space-y-3">
-            {/* Checkbox principal */}
-            <label className="flex items-center gap-3 p-3 bg-white border-2 border-gray-200 rounded-lg cursor-pointer hover:border-ras-azul transition-all">
-              <input
-                type="checkbox"
-                checked={space.details.banoPrivado || false}
-                onChange={(e) => {
-                  updateDetail('banoPrivado', e.target.checked);
-                  if (!e.target.checked) {
-                    // Si desmarca, limpia la selección
-                    updateDetail('banoPrivadoId', null);
-                  }
-                }}
-                className="w-5 h-5 text-ras-azul focus:ring-ras-azul rounded"
-              />
-              <div>
-                <span className="font-semibold text-gray-900 text-sm">Baño privado</span>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Esta habitación tiene baño propio
-                </p>
-              </div>
-            </label>
-
-            {/* Selector de baño (solo si está marcado) */}
-            {space.details.banoPrivado && (
-              <>
-                {(() => {
-                  // Filtrar solo baños de la propiedad
-                  const banosDisponibles = allSpaces.filter(s => 
-                    s.type === 'Baño completo' || s.type === 'Medio baño'
-                  );
-
-                  if (banosDisponibles.length === 0) {
-                    return (
-                      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800 flex items-center gap-2">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
-                          </svg>
-                          No hay baños agregados aún. Primero agrega un baño completo o medio baño.
-                        </p>
-                      </div>
-                    );
-                  }
-
+                if (banosDisponibles.length === 0) {
                   return (
-                    <div className="space-y-3">
-                      {/* Selector de baño */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
-                          ¿Cuál baño es privado de esta habitación?
-                        </label>
-                        <select
-                          value={space.details.banoPrivadoId || ''}
-                          onChange={(e) => updateDetail('banoPrivadoId', e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm bg-white"
-                        >
-                          <option value="">Selecciona un baño...</option>
-                          {banosDisponibles.map(bano => (
-                            <option key={bano.id} value={bano.id}>
-                              {bano.name} ({bano.type})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Mostrar características del baño seleccionado */}
-                      {space.details.banoPrivadoId && (() => {
-                        const banoSeleccionado = banosDisponibles.find(
-                          b => b.id === space.details.banoPrivadoId
-                        );
-
-                        if (!banoSeleccionado) return null;
-
-                        const equipamiento = banoSeleccionado.details.equipamiento || [];
-                        
-                        if (equipamiento.length === 0) {
-                          return (
-                            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                              <p className="text-xs text-gray-600">
-                                Este baño no tiene equipamiento configurado aún.
-                              </p>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                            <p className="text-xs font-semibold text-blue-900 mb-2">
-                              Características del baño:
-                            </p>
-                            <div className="flex flex-wrap gap-1.5">
-                              {equipamiento.map((item: string) => (
-                                <span
-                                  key={item}
-                                  className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-800"
-                                >
-                                  ✓ {item}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })()}
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd"/>
+                        </svg>
+                        No hay baños agregados aún. Primero agrega un baño completo o medio baño.
+                      </p>
                     </div>
                   );
-                })()}
-              </>
-            )}
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {/* Selector de baño */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        ¿Cuál baño es privado de esta habitación?
+                      </label>
+                      <select
+                        value={space.details.banoPrivadoId || ''}
+                        onChange={(e) => updateDetail('banoPrivadoId', e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm bg-white"
+                      >
+                        <option value="">Selecciona un baño...</option>
+                        {banosDisponibles.map(bano => (
+                          <option key={bano.id} value={bano.id}>
+                            {bano.name} ({bano.type})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Mostrar características del baño seleccionado */}
+                    {space.details.banoPrivadoId && (() => {
+                      const banoSeleccionado = banosDisponibles.find(
+                        b => b.id === space.details.banoPrivadoId
+                      );
+
+                      if (!banoSeleccionado) return null;
+
+                      const equipamiento = banoSeleccionado.details.equipamiento || [];
+                      
+                      if (equipamiento.length === 0) {
+                        return (
+                          <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <p className="text-xs text-gray-600">
+                              Este baño no tiene equipamiento configurado aún.
+                            </p>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <p className="text-xs font-semibold text-blue-900 mb-2">
+                            Características del baño:
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {equipamiento.map((item: string) => (
+                              <span
+                                key={item}
+                                className="inline-flex items-center px-2 py-1 bg-white border border-blue-300 rounded text-xs font-medium text-blue-800"
+                              >
+                                ✓ {item}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECCIÓN ESPECIAL PARA ALBERCA */}
+      {isAlberca && (
+        <div className="space-y-3">
+          {/* Tamaño y Tipo de tratamiento en la misma fila */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Tamaño en m³ */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Tamaño (m³)
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.1"
+                value={space.details.tamanoAlberca || ''}
+                onChange={(e) => updateDetail('tamanoAlberca', parseFloat(e.target.value) || '')}
+                placeholder="Ej: 50"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
+              />
+            </div>
+
+            {/* Tipo de tratamiento */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Tipo de tratamiento
+              </label>
+              <select
+                value={space.details.tipoTratamientoAlberca || ''}
+                onChange={(e) => updateDetail('tipoTratamientoAlberca', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
+              >
+                <option value="">Seleccionar...</option>
+                <option value="Cloro">Cloro</option>
+                <option value="Sal">Sal</option>
+              </select>
+            </div>
           </div>
         </div>
       )}
