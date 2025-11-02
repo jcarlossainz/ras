@@ -28,54 +28,52 @@ const SpaceCard: React.FC<SpaceCardProps> = ({
     <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
-        {/* Left - Nombre */}
+        {/* Left - Nombre con chip de tipo */}
         <div className="flex-1 min-w-0">
           <label className="block text-xs font-semibold text-gray-500 mb-1">
             Nombre o ID
           </label>
-          <input
-            type="text"
-            value={space.name}
-            onChange={handleNameChange}
-            placeholder="Puedes renombrarlo"
-            className="w-full px-3 py-2 border-2 border-ras-azul/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul/30 font-medium"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={space.name}
+              onChange={handleNameChange}
+              placeholder="Puedes renombrarlo"
+              className="flex-1 px-3 py-2 border-2 border-ras-azul/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul/30 font-medium"
+            />
+            {/* Type Badge - ahora al lado del input */}
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-ras-azul/10 to-ras-turquesa/10 border border-ras-azul/30 rounded-lg text-xs font-bold text-ras-azul whitespace-nowrap">
+              {space.type}
+            </span>
+          </div>
         </div>
 
-        {/* Right - Badge & Actions */}
-        <div className="flex flex-col items-end gap-2">
-          {/* Type Badge */}
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-ras-azul/10 to-ras-turquesa/10 border border-ras-azul/30 rounded-lg text-xs font-bold text-ras-azul whitespace-nowrap">
-            {space.type}
-          </span>
+        {/* Right - Action Buttons */}
+        <div className="flex gap-2 pt-6">
+          {/* Duplicar */}
+          <button
+            onClick={() => onDuplicate(space)}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-sky-50 border border-sky-300 text-sky-700 rounded-lg text-xs font-semibold hover:bg-sky-100 transition-colors"
+            title="Duplicar espacio"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+            Duplicar
+          </button>
 
-          {/* Action Buttons */}
-          <div className="flex gap-2">
-            {/* Duplicar */}
-            <button
-              onClick={() => onDuplicate(space)}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-sky-50 border border-sky-300 text-sky-700 rounded-lg text-xs font-semibold hover:bg-sky-100 transition-colors"
-              title="Duplicar espacio"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              Duplicar
-            </button>
-
-            {/* Eliminar */}
-            <button
-              onClick={() => onDelete(space.id)}
-              className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 border border-red-300 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
-              title="Eliminar espacio"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M6 18L18 6M6 6l12 12"/>
-              </svg>
-              Eliminar
-            </button>
-          </div>
+          {/* Eliminar */}
+          <button
+            onClick={() => onDelete(space.id)}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 border border-red-300 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
+            title="Eliminar espacio"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+            Eliminar
+          </button>
         </div>
       </div>
 
@@ -277,21 +275,10 @@ const SpaceDetails: React.FC<{
               </select>
             </div>
 
-            {/* Capacidad manual */}
+            {/* Capacidad sugerida */}
             {(space.details.camas || []).length > 0 && (
-              <div className="mt-3">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Capacidad:
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={space.details.capacidadPersonas || ''}
-                  onChange={(e) => updateDetail('capacidadPersonas', parseInt(e.target.value) || 0)}
-                  placeholder="Ingresa el número de personas"
-                  className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm bg-white"
-                />
-                <p className="text-xs text-blue-600 mt-1">
+              <div className="mt-2 p-2 bg-white border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-700">
                   💡 Capacidad sugerida según camas: {(() => {
                     const { min, max } = calcularCapacidadCamas();
                     return min === max ? `${min} persona${min !== 1 ? 's' : ''}` : `${min}-${max} personas`;
@@ -299,6 +286,24 @@ const SpaceDetails: React.FC<{
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Ocupantes */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Cantidad de ocupantes
+            </label>
+            <input
+              type="number"
+              min="1"
+              value={space.details.capacidadPersonas || ''}
+              onChange={(e) => updateDetail('capacidadPersonas', parseInt(e.target.value) || '')}
+              placeholder="Número de personas que pueden ocupar"
+              className="w-full px-3 py-2 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm bg-white"
+            />
+            <p className="text-xs text-gray-600 mt-1">
+              Indica cuántas personas pueden ocupar esta habitación
+            </p>
           </div>
 
           {/* Baño Privado - Sistema Avanzado */}
@@ -489,24 +494,23 @@ const SpaceDetails: React.FC<{
           </div>
         )}
 
-        {/* Chips de equipamiento personalizado */}
+        {/* Equipamiento personalizado - integrado en la grilla */}
         {equipamientoPersonalizado.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="text-xs font-semibold text-gray-600">Personalizado:</span>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
             {equipamientoPersonalizado.map((item: string) => (
-              <span
+              <div
                 key={item}
-                className="inline-flex items-center gap-1 px-3 py-1 bg-ras-turquesa/10 border border-ras-turquesa text-ras-turquesa rounded-full text-xs font-medium"
+                className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border-2 border-ras-azul bg-ras-azul/5 text-ras-azul"
               >
-                {item}
+                <span className="text-xs font-medium flex-1">{item}</span>
                 <button
                   type="button"
                   onClick={() => eliminarEquipamientoPersonalizado(item)}
-                  className="ml-1 hover:text-red-600 transition-colors"
+                  className="text-ras-azul hover:text-red-600 transition-colors font-bold text-sm"
                 >
                   ✕
                 </button>
-              </span>
+              </div>
             ))}
           </div>
         )}

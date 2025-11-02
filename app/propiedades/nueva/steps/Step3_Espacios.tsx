@@ -91,16 +91,15 @@ export default function Step3_Espacios({ data, onUpdate }: Step3Props) {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h2 className="text-2xl font-bold text-gray-900 font-poppins mb-2 flex items-center gap-2">
-              <span>🏠</span>
+            <h2 className="text-2xl font-bold text-gray-900 font-poppins mb-2 flex items-center gap-3">
+              <svg className="w-7 h-7 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+              </svg>
               Espacios de la Propiedad
             </h2>
-            <p className="text-gray-600 mb-4">
-              Define todos los espacios: habitaciones, baños, áreas comunes y más
-            </p>
 
             {/* Resumen */}
-            {Object.keys(conteoEspacios).length > 0 && (
+            {Object.keys(conteoEspacios).length > 0 ? (
               <div className="flex flex-wrap gap-2 mt-4">
                 {Object.entries(conteoEspacios).map(([tipo, cantidad]) => (
                   <span
@@ -111,6 +110,10 @@ export default function Step3_Espacios({ data, onUpdate }: Step3Props) {
                   </span>
                 ))}
               </div>
+            ) : (
+              <p className="text-gray-600">
+                Define todos los espacios: habitaciones, baños, áreas comunes y más
+              </p>
             )}
           </div>
 
@@ -119,9 +122,12 @@ export default function Step3_Espacios({ data, onUpdate }: Step3Props) {
             type="button"
             variant="outline"
             onClick={() => setMostrarTemplates(!mostrarTemplates)}
-            className="whitespace-nowrap"
+            className="whitespace-nowrap flex items-center gap-2"
           >
-            {mostrarTemplates ? '✕ Cerrar' : '⚡ Templates'}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            {mostrarTemplates ? 'Cerrar' : 'Templates'}
           </Button>
         </div>
 
@@ -139,18 +145,22 @@ export default function Step3_Espacios({ data, onUpdate }: Step3Props) {
       {/* Agregar espacios */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-          <span>➕</span>
+          <svg className="w-6 h-6 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M12 4v16m8-8H4"/>
+          </svg>
           Agregar Espacios
         </h3>
         <SpaceCategories onSelectType={agregarEspacio} />
       </div>
 
       {/* Lista de espacios */}
-      {espacios.length > 0 ? (
+      {espacios.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span>📝</span>
+              <svg className="w-6 h-6 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+              </svg>
               Espacios Agregados ({espacios.length})
             </h3>
           </div>
@@ -168,43 +178,7 @@ export default function Step3_Espacios({ data, onUpdate }: Step3Props) {
             ))}
           </div>
         </div>
-      ) : (
-        <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-12 text-center">
-          <div className="max-w-md mx-auto">
-            <div className="text-6xl mb-4">🏠</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
-              No hay espacios agregados
-            </h3>
-            <p className="text-gray-600 mb-6">
-              Comienza agregando espacios usando las categorías de arriba o aplica un template rápido
-            </p>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => setMostrarTemplates(true)}
-              className="mx-auto"
-            >
-              ⚡ Ver Templates
-            </Button>
-          </div>
-        </div>
       )}
-
-      {/* Info box */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex gap-3">
-          <span className="text-blue-600 text-xl">💡</span>
-          <div className="flex-1">
-            <h4 className="font-semibold text-blue-900 mb-1">Tips importantes</h4>
-            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-              <li>Agrega primero los baños si las habitaciones tienen baño privado</li>
-              <li>Puedes duplicar espacios similares para ahorrar tiempo</li>
-              <li>Usa los templates para configuraciones comunes</li>
-              <li>El equipamiento es opcional pero ayuda a describir mejor la propiedad</li>
-            </ul>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,25 +1,191 @@
 'use client';
 
 import React from 'react';
-import { PropertyTemplate, PROPERTY_TEMPLATES } from '@/types/property';
+import { Space } from '@/types/property';
 
-interface SpaceTemplatesProps {
-  onApplyTemplate: (template: PropertyTemplate) => void;
+interface PropertyTemplate {
+  id: string;
+  name: string;
+  description: string;
+  spaces: Omit<Space, 'id'>[];
 }
 
-const SpaceTemplates: React.FC<SpaceTemplatesProps> = ({ onApplyTemplate }) => {
+interface SpaceTemplatesProps {
+  onAplicarTemplate: (espacios: Space[]) => void;
+  onCerrar: () => void;
+}
+
+// Templates definidos aquí (puedes importarlos desde property-templates.ts)
+const PROPERTY_TEMPLATES: PropertyTemplate[] = [
+  {
+    id: 'departamento',
+    name: 'Departamento',
+    description: '2 hab, 1 baño, cocina, sala',
+    spaces: [
+      { name: 'Habitación 1', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet'], camas: [{ tipo: 'Queen', id: Date.now() + 1 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 2', type: 'Habitación', details: { equipamiento: ['Closet'], camas: [{ tipo: 'Matrimonial', id: Date.now() + 2 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Baño', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }},
+      { name: 'Cocina', type: 'Cocina', details: { equipamiento: ['Estufa', 'Refrigerador'], camas: [], notas: '' }},
+      { name: 'Sala', type: 'Sala', details: { equipamiento: ['Smart TV'], camas: [], notas: '' }},
+      { name: 'Comedor', type: 'Comedor', details: { equipamiento: ['Mesa comedor'], camas: [], notas: '' }},
+      { name: 'Cuarto de Lavado', type: 'Cuarto de lavado', details: { equipamiento: ['Lavadora'], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'casa',
+    name: 'Casa',
+    description: '3 hab, 2.5 baños, jardín',
+    spaces: [
+      { name: 'Habitación 1', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet', 'Vestidor'], camas: [{ tipo: 'King', id: Date.now() + 1 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 2', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet'], camas: [{ tipo: 'Matrimonial', id: Date.now() + 2 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 3', type: 'Habitación', details: { equipamiento: ['Closet'], camas: [{ tipo: 'Individual', id: Date.now() + 3 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Baño Principal', type: 'Baño completo', details: { equipamiento: ['Regadera', 'Tocador'], camas: [], notas: '' }},
+      { name: 'Baño Secundario', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }},
+      { name: 'Medio Baño', type: 'Medio baño', details: { equipamiento: [], camas: [], notas: '' }},
+      { name: 'Cocina', type: 'Cocina', details: { equipamiento: ['Estufa', 'Horno', 'Refrigerador'], camas: [], notas: '' }},
+      { name: 'Patio', type: 'Patio', details: { equipamiento: ['Muebles de exterior'], camas: [], notas: '' }},
+      { name: 'Jardín', type: 'Jardín', details: { equipamiento: [], camas: [], notas: '' }},
+      { name: 'Cuarto de Lavado', type: 'Cuarto de lavado', details: { equipamiento: ['Lavadora', 'Secadora'], camas: [], notas: '' }},
+      { name: 'Estacionamiento', type: 'Estacionamiento', details: { equipamiento: ['Techado'], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'villa',
+    name: 'Villa',
+    description: '4 hab, 4.5 baños, alberca',
+    spaces: [
+      { name: 'Habitación 1', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet', 'Vestidor', 'Balcón'], camas: [{ tipo: 'King', id: Date.now() + 1 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 2', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet'], camas: [{ tipo: 'Queen', id: Date.now() + 2 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 3', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet'], camas: [{ tipo: 'Queen', id: Date.now() + 3 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 4', type: 'Habitación', details: { equipamiento: ['Closet'], camas: [{ tipo: 'Matrimonial', id: Date.now() + 4 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Baño Principal', type: 'Baño completo', details: { equipamiento: ['Regadera', 'Tina', 'Doble lavabo'], camas: [], notas: '' }},
+      { name: 'Baño 2', type: 'Baño completo', details: { equipamiento: ['Regadera', 'Tocador'], camas: [], notas: '' }},
+      { name: 'Baño 3', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }},
+      { name: 'Baño 4', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }},
+      { name: 'Medio Baño', type: 'Medio baño', details: { equipamiento: [], camas: [], notas: '' }},
+      { name: 'Cocina', type: 'Cocina', details: { equipamiento: ['Estufa', 'Horno', 'Refrigerador', 'Lavavajillas', 'Isla'], camas: [], notas: '' }},
+      { name: 'Patio', type: 'Patio', details: { equipamiento: ['Muebles de exterior', 'Asador'], camas: [], notas: '' }},
+      { name: 'Jardín', type: 'Jardín', details: { equipamiento: ['Iluminación exterior'], camas: [], notas: '' }},
+      { name: 'Alberca', type: 'Alberca', details: { equipamiento: ['Camastros', 'Regaderas exteriores'], camas: [], notas: '' }},
+      { name: 'Cuarto de Lavado', type: 'Cuarto de lavado', details: { equipamiento: ['Lavadora', 'Secadora'], camas: [], notas: '' }},
+      { name: 'Estacionamiento', type: 'Estacionamiento', details: { equipamiento: ['Techado', 'Portón automático'], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'condominio',
+    name: 'Condominio',
+    description: '3 hab, 2.5 baños, jardín',
+    spaces: [
+      { name: 'Habitación 1', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet', 'Vestidor'], camas: [{ tipo: 'King', id: Date.now() + 1 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 2', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet'], camas: [{ tipo: 'Matrimonial', id: Date.now() + 2 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 3', type: 'Habitación', details: { equipamiento: ['Closet'], camas: [{ tipo: 'Individual', id: Date.now() + 3 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Baño Principal', type: 'Baño completo', details: { equipamiento: ['Regadera', 'Tocador'], camas: [], notas: '' }},
+      { name: 'Baño Secundario', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }},
+      { name: 'Medio Baño', type: 'Medio baño', details: { equipamiento: [], camas: [], notas: '' }},
+      { name: 'Cocina', type: 'Cocina', details: { equipamiento: ['Estufa', 'Horno', 'Refrigerador'], camas: [], notas: '' }},
+      { name: 'Patio', type: 'Patio', details: { equipamiento: ['Muebles de exterior'], camas: [], notas: '' }},
+      { name: 'Jardín', type: 'Jardín', details: { equipamiento: [], camas: [], notas: '' }},
+      { name: 'Cuarto de Lavado', type: 'Cuarto de lavado', details: { equipamiento: ['Lavadora', 'Secadora'], camas: [], notas: '' }},
+      { name: 'Estacionamiento', type: 'Estacionamiento', details: { equipamiento: ['Techado'], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'penthouse',
+    name: 'Penthouse',
+    description: '3 hab, 2.5 baños, rooftop',
+    spaces: [
+      { name: 'Habitación 1', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet', 'Vestidor'], camas: [{ tipo: 'King', id: Date.now() + 1 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 2', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet'], camas: [{ tipo: 'Matrimonial', id: Date.now() + 2 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Habitación 3', type: 'Habitación', details: { equipamiento: ['Closet'], camas: [{ tipo: 'Individual', id: Date.now() + 3 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Baño Principal', type: 'Baño completo', details: { equipamiento: ['Regadera', 'Tocador'], camas: [], notas: '' }},
+      { name: 'Baño Secundario', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }},
+      { name: 'Medio Baño', type: 'Medio baño', details: { equipamiento: [], camas: [], notas: '' }},
+      { name: 'Cocina', type: 'Cocina', details: { equipamiento: ['Estufa', 'Horno', 'Refrigerador'], camas: [], notas: '' }},
+      { name: 'Patio', type: 'Patio', details: { equipamiento: ['Muebles de exterior'], camas: [], notas: '' }},
+      { name: 'Jardín', type: 'Jardín', details: { equipamiento: [], camas: [], notas: '' }},
+      { name: 'Rooftop', type: 'Rooftop', details: { equipamiento: ['Muebles de exterior', 'Asador'], camas: [], notas: '' }},
+      { name: 'Cuarto de Lavado', type: 'Cuarto de lavado', details: { equipamiento: ['Lavadora', 'Secadora'], camas: [], notas: '' }},
+      { name: 'Estacionamiento', type: 'Estacionamiento', details: { equipamiento: ['Techado'], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'loft',
+    name: 'Loft',
+    description: '1 hab, 1 baño, espacio abierto',
+    spaces: [
+      { name: 'Habitación', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet'], camas: [{ tipo: 'Queen', id: Date.now() + 1 }], capacidadPersonas: 2, notas: '' }},
+      { name: 'Baño', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }},
+      { name: 'Cocina', type: 'Cocina', details: { equipamiento: ['Estufa', 'Refrigerador'], camas: [], notas: '' }},
+      { name: 'Sala', type: 'Sala', details: { equipamiento: ['Smart TV'], camas: [], notas: '' }},
+      { name: 'Comedor', type: 'Comedor', details: { equipamiento: ['Mesa comedor'], camas: [], notas: '' }},
+      { name: 'Cuarto de Lavado', type: 'Cuarto de lavado', details: { equipamiento: ['Lavadora'], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'estudio',
+    name: 'Estudio',
+    description: 'Espacio integrado todo en uno',
+    spaces: [
+      { name: 'Estudio', type: 'Habitación', details: { equipamiento: ['Aire acondicionado', 'Closet', 'Estufa', 'Refrigerador', 'Microondas'], camas: [{ tipo: 'Queen', id: Date.now() + 1 }], capacidadPersonas: 2, notas: 'Espacio integrado que incluye área de dormir, estar, cocina y comedor' }},
+      { name: 'Baño', type: 'Baño completo', details: { equipamiento: ['Regadera'], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'oficina',
+    name: 'Oficina',
+    description: 'Espacio comercial',
+    spaces: [
+      { name: 'Área de Oficina', type: 'Oficina', details: { equipamiento: ['Aire acondicionado', 'Escritorio'], camas: [], notas: '' }},
+      { name: 'Baño', type: 'Baño completo', details: { equipamiento: [], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'local-comercial',
+    name: 'Local Comercial',
+    description: 'Local adaptable',
+    spaces: [
+      { name: 'Área Comercial', type: 'Oficina', details: { equipamiento: ['Aire acondicionado'], camas: [], notas: '' }},
+      { name: 'Baño', type: 'Medio baño', details: { equipamiento: [], camas: [], notas: '' }}
+    ]
+  },
+  {
+    id: 'bodega',
+    name: 'Bodega',
+    description: 'Almacenamiento',
+    spaces: [
+      { name: 'Área de Almacenamiento', type: 'Bodega', details: { equipamiento: ['Iluminación', 'Repisas'], camas: [], notas: '' }},
+      { name: 'Oficina', type: 'Oficina', details: { equipamiento: ['Escritorio'], camas: [], notas: '' }},
+      { name: 'Baño', type: 'Medio baño', details: { equipamiento: [], camas: [], notas: '' }}
+    ]
+  }
+];
+
+const SpaceTemplates: React.FC<SpaceTemplatesProps> = ({ onAplicarTemplate, onCerrar }) => {
+  
+  const handleSelectTemplate = (template: PropertyTemplate) => {
+    // Generar IDs únicos para cada espacio
+    const espaciosConIds = template.spaces.map((espacio, index) => ({
+      ...espacio,
+      id: `space-${Date.now()}-${index}-${Math.random().toString(36).substr(2, 9)}`
+    })) as Space[];
+
+    onAplicarTemplate(espaciosConIds);
+    onCerrar();
+  };
+
   return (
-    <div className="bg-white border-2 border-dashed border-gray-300 rounded-xl p-5 mb-6">
+    <div className="bg-white rounded-xl p-5">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-4">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 font-poppins">
-            Templates Rápidos
-          </h3>
-          <p className="text-xs text-gray-600 font-roboto">
-            Configura tu propiedad en segundos con plantillas predefinidas
-          </p>
-        </div>
+      <div className="mb-4">
+        <h3 className="text-lg font-bold text-gray-900 font-poppins flex items-center gap-2">
+          <svg className="w-5 h-5 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+          Templates Rápidos
+        </h3>
+        <p className="text-xs text-gray-600 font-roboto mt-1">
+          Configura tu propiedad en segundos con plantillas predefinidas
+        </p>
       </div>
 
       {/* Templates Grid */}
@@ -27,7 +193,7 @@ const SpaceTemplates: React.FC<SpaceTemplatesProps> = ({ onApplyTemplate }) => {
         {PROPERTY_TEMPLATES.map((template) => (
           <button
             key={template.id}
-            onClick={() => onApplyTemplate(template)}
+            onClick={() => handleSelectTemplate(template)}
             className="group relative bg-gradient-to-br from-stone-100 to-stone-50 border-2 border-stone-300 rounded-lg p-4 text-left hover:from-stone-200 hover:to-stone-100 hover:border-ras-azul hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
           >
             {/* Title */}
