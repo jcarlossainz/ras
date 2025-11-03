@@ -85,7 +85,8 @@ export default function DashboardPage() {
 
           {/* ANUNCIOS */}
           <Card 
-            title="Anuncios"
+            title="Market"
+            onClick={() => router.push('/dashboard/market')}
             icon={
               <div className="w-24 h-24 rounded-xl bg-gradient-to-b from-ras-crema to-white border-2 border-ras-crema/50 flex items-center justify-center">
                 <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
@@ -128,6 +129,7 @@ export default function DashboardPage() {
           {/* DIRECTORIO */}
           <Card 
             title="Directorio"
+            onClick={() => router.push('/dashboard/directorio')}
             icon={
               <div className="w-24 h-24 rounded-xl bg-gradient-to-b from-ras-crema to-white border-2 border-ras-crema/50 flex items-center justify-center">
                 <svg className="w-12 h-12" viewBox="0 0 24 24" fill="none">
