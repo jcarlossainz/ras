@@ -78,3 +78,179 @@ export interface PropertyFormData {
   // Metadata
   is_draft: boolean;
 }
+
+// 📁 src/types/property.ts (actualizado con campos de galería dual)
+
+export interface PropertyImage {
+  id?: string;
+  url: string;                    // URL de la imagen display (1200px)
+  url_thumbnail?: string;         // URL de la imagen thumbnail (300px)
+  is_cover: boolean;              // ¿Es la foto de portada?
+  order_index: number;            // Orden de visualización
+  space_type: string | null;      // ID del espacio al que pertenece
+  caption: string | null;         // Descripción de la foto
+  uploaded_at?: string;           // Timestamp de subida
+  file_size?: {                   // Tamaños de archivo
+    thumbnail: number;
+    display: number;
+  };
+  dimensions?: {                  // Dimensiones de las imágenes
+    thumbnail: { width: number; height: number };
+    display: { width: number; height: number };
+  };
+}
+
+export interface Space {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  category?: string;
+  quantity?: number;
+  features?: string[];
+  created_at?: string;
+}
+
+export interface PropertyFormData {
+  // Identificación
+  id?: string;
+  nombre_propiedad: string;
+  tipo_propiedad: string;
+  estado_propiedad: string;
+  
+  // Ubicación
+  pais?: string;
+  estado?: string;
+  ciudad?: string;
+  colonia?: string;
+  calle?: string;
+  numero_exterior?: string;
+  numero_interior?: string;
+  codigo_postal?: string;
+  
+  // Descripción
+  descripcion_corta?: string;
+  descripcion_larga?: string;
+  
+  // Precio
+  precio_venta?: number;
+  precio_renta?: number;
+  moneda?: string;
+  
+  // Características
+  superficie_terreno?: number;
+  superficie_construccion?: number;
+  recamaras?: number;
+  banos?: number;
+  medios_banos?: number;
+  estacionamientos?: number;
+  niveles?: number;
+  antiguedad?: number;
+  
+  // Galería (ACTUALIZADO)
+  photos: PropertyImage[];
+  
+  // Espacios
+  espacios: Space[];
+  
+  // Amenidades
+  amenidades?: string[];
+  
+  // Condicionales
+  permite_mascotas?: boolean;
+  amueblado?: boolean;
+  
+  // Contacto
+  contacto_id?: string;
+  
+  // Metadata
+  created_at?: string;
+  updated_at?: string;
+  published_at?: string;
+  status?: 'draft' | 'published' | 'archived';
+}
+
+// Tipos auxiliares para la galería
+
+export interface GalleryStats {
+  total: number;
+  assigned: number;
+  unassigned: number;
+  withCover: number;
+  bySpace: Record<string, number>;
+}
+
+export interface PhotoUploadProgress {
+  total: number;
+  current: number;
+  percentage: number;
+  status: string;
+  currentFile: string;
+  errors: string[];
+}
+
+export interface ImageCompressionResult {
+  thumbnail: Blob;
+  display: Blob;
+  originalSize: number;
+  thumbnailSize: number;
+  displaySize: number;
+  compressionRatio: {
+    thumbnail: number;
+    display: number;
+  };
+}
+
+// Enums útiles
+
+export enum PropertyType {
+  CASA = 'Casa',
+  DEPARTAMENTO = 'Departamento',
+  TERRENO = 'Terreno',
+  OFICINA = 'Oficina',
+  LOCAL_COMERCIAL = 'Local Comercial',
+  BODEGA = 'Bodega',
+  RANCHO = 'Rancho'
+}
+
+export enum PropertyStatus {
+  DRAFT = 'draft',
+  PUBLISHED = 'published',
+  ARCHIVED = 'archived'
+}
+
+export enum TransactionType {
+  VENTA = 'venta',
+  RENTA = 'renta',
+  AMBOS = 'ambos'
+}
+
+// Constantes para la galería
+
+export const GALLERY_CONSTANTS = {
+  THUMBNAIL_SIZE: 300,
+  DISPLAY_MAX_WIDTH: 1200,
+  COMPRESSION_QUALITY: 0.8,
+  MAX_FILES_PER_UPLOAD: 20,
+  SUPPORTED_FORMATS: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+  MIN_PHOTOS_RECOMMENDED: 5,
+  OPTIMAL_PHOTOS: 15
+} as const;
+
+// Helper types para formularios
+
+export type PropertyFormStep = 
+  | 'datos_generales'
+  | 'ubicacion'
+  | 'espacios'
+  | 'condicionales'
+  | 'galeria'
+  | 'revision';
+
+export interface StepConfig {
+  id: PropertyFormStep;
+  title: string;
+  icon: string;
+  description: string;
+  isComplete: (data: PropertyFormData) => boolean;
+}

@@ -1,109 +1,327 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
+import TopBar from '@/components/ui/topbar'
+import Input from '@/components/ui/input'
+import Button from '@/components/ui/button'
+import Loading from '@/components/ui/loading'
+import Modal from '@/components/ui/modal'
 
-export default function RegisterPage() {
+export default function PerfilPage() {
   const router = useRouter()
-  const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
-    password: ''
-  })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [guardando, setGuardando] = useState(false)
+  
+  // Estados para el formulario de información personal
+  const [nombre, setNombre] = useState('')
+  const [email, setEmail] = useState('')
+  const [telefono, setTelefono] = useState('')
+  
+  // Estados para modal de cambio de contraseña
+  const [showModalPassword, setShowModalPassword] = useState(false)
+  const [passwordActual, setPasswordActual] = useState('')
+  const [passwordNueva, setPasswordNueva] = useState('')
+  const [passwordConfirmar, setPasswordConfirmar] = useState('')
+  const [cambiandoPassword, setCambiandoPassword] = useState(false)
 
-  const handleRegister = async (e: React.FormEvent) => {
+  useEffect(() => {
+    checkUser()
+  }, [])
+
+  const checkUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
+
+    if (profile) {
+      setUser({ ...profile, id: user.id })
+      setNombre(profile.full_name || '')
+      setEmail(profile.email || user.email || '')
+      setTelefono(profile.phone || '')
+    }
+    
+    setLoading(false)
+  }
+
+  const handleGuardarInfo = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setLoading(true)
+    setGuardando(true)
+
+    // Validar teléfono si está presente
+    if (telefono && !/^\d{10}$/.test(telefono.replace(/\s/g, ''))) {
+      alert('❌ El teléfono debe tener 10 dígitos')
+      setGuardando(false)
+      return
+    }
 
     try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: { full_name: formData.fullName }
-        }
-      })
-
-      if (signUpError) throw signUpError
-
-      if (data.user) {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: nombre,
+          phone: telefono
         })
+        .eq('id', user.id)
 
-        if (signInError) throw signInError
+      if (error) throw error
 
-        router.push('/dashboard')
-      }
+      alert('✅ Información actualizada correctamente')
+      setUser({ ...user, full_name: nombre, phone: telefono })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al crear cuenta')
-      setLoading(false)
+      alert('Error: ' + (err as Error).message)
+    } finally {
+      setGuardando(false)
     }
   }
 
+  const handleCambiarPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    // Validaciones
+    if (passwordNueva !== passwordConfirmar) {
+      alert('❌ Las contraseñas no coinciden')
+      return
+    }
+
+    if (passwordNueva.length < 6) {
+      alert('❌ La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+
+    setCambiandoPassword(true)
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordNueva
+      })
+
+      if (error) throw error
+
+      alert('✅ Contraseña actualizada correctamente')
+      setPasswordActual('')
+      setPasswordNueva('')
+      setPasswordConfirmar('')
+      setShowModalPassword(false)
+    } catch (err) {
+      alert('Error: ' + (err as Error).message)
+    } finally {
+      setCambiandoPassword(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+      await supabase.auth.signOut()
+      router.push('/login')
+    }
+  }
+
+  if (loading) {
+    return <Loading message="Cargando perfil..." />
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#00768E] to-[#00CC99] flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
-        <h1 className="text-3xl font-bold text-[#00768E] mb-6 text-center">Crear Cuenta</h1>
+    <div className="min-h-screen bg-gradient-to-br from-ras-crema via-white to-ras-crema">
+      <TopBar 
+        title="Configuración"
+        showBackButton={true}
+        showUserInfo={true}
+        userEmail={user?.email}
+        onLogout={handleLogout}
+      />
 
-        <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-2">Nombre</label>
-            <input
+      {/* Main Content */}
+      <main className="max-w-3xl mx-auto px-4 py-8">
+        
+        {/* Sección: Información Personal */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 mb-6">
+          <h2 className="text-2xl font-bold font-poppins text-gray-800 mb-6">Información Personal</h2>
+          
+          <form onSubmit={handleGuardarInfo} className="space-y-5">
+            {/* Foto de perfil */}
+            <div className="flex justify-center mb-6">
+              <div className="relative">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#00768E] to-[#00CC99] border-4 border-white shadow-lg flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity">
+                  {/* Iniciales del usuario */}
+                  <span className="text-2xl font-bold text-white">
+                    {nombre ? nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'}
+                  </span>
+                </div>
+                {/* Botón de cámara para subir foto (funcionalidad pendiente) */}
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 w-8 h-8 bg-[#00768E] rounded-full border-2 border-white shadow-lg flex items-center justify-center hover:bg-[#00CC99] transition-colors"
+                  title="Cambiar foto (próximamente)"
+                  onClick={() => alert('Funcionalidad de foto disponible próximamente')}
+                >
+                  <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Nombre completo */}
+            <Input
+              label="Nombre completo"
               type="text"
-              value={formData.fullName}
-              onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-              className="w-full px-4 py-2 border rounded-lg"
+              value={nombre}
+              onChange={(e) => setNombre(e.target.value)}
+              placeholder="Tu nombre"
               required
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Email</label>
-            <input
+            {/* Email (solo lectura) */}
+            <Input
+              label="Email"
               type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({...formData, email: e.target.value})}
-              className="w-full px-4 py-2 border rounded-lg"
-              required
+              value={email}
+              disabled
+              helperText="El email no se puede modificar"
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-2">Contraseña</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({...formData, password: e.target.value})}
-              className="w-full px-4 py-2 border rounded-lg"
-              required
-            />
-          </div>
+            {/* Teléfono */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Teléfono <span className="text-gray-400 text-xs font-normal">(10 dígitos)</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                  </svg>
+                </div>
+                <input
+                  type="tel"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#00768E] focus:border-transparent transition-all outline-none"
+                  placeholder="5512345678"
+                  maxLength={10}
+                />
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Formato: 10 dígitos sin espacios ni guiones
+              </p>
+            </div>
 
-          {error && <div className="text-red-600 text-sm">{error}</div>}
+            <Button
+              type="submit"
+              disabled={guardando}
+              variant="primary"
+            >
+              {guardando ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </form>
+        </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#00768E] text-white py-3 rounded-lg font-medium hover:bg-[#005a6d]"
+        {/* Sección: Seguridad */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8">
+          <h2 className="text-2xl font-bold font-poppins text-gray-800 mb-2">Seguridad</h2>
+          <p className="text-sm text-gray-500 mb-6 font-roboto">
+            Mantén tu cuenta segura actualizando tu contraseña regularmente.
+          </p>
+          
+          <Button
+            onClick={() => setShowModalPassword(true)}
+            variant="outline"
           >
-            {loading ? 'Creando cuenta...' : 'Crear Cuenta'}
-          </button>
-        </form>
+            🔒 Cambiar Contraseña
+          </Button>
+        </div>
 
-        <p className="text-center text-sm text-gray-600 mt-6">
-          ¿Ya tienes cuenta?{' '}
-          <Link href="/login" className="text-[#00768E] font-medium">
-            Iniciar sesión
-          </Link>
-        </p>
-      </div>
+      </main>
+
+      {/* Modal Cambiar Contraseña */}
+      <Modal 
+        isOpen={showModalPassword}
+        onClose={() => {
+          setShowModalPassword(false)
+          setPasswordActual('')
+          setPasswordNueva('')
+          setPasswordConfirmar('')
+        }}
+        maxWidth="lg"
+      >
+        <h2 className="text-2xl font-bold font-poppins text-gray-800 mb-6">Cambiar Contraseña</h2>
+        
+        <form onSubmit={handleCambiarPassword} className="space-y-5">
+          {/* Contraseña Actual */}
+          <Input
+            label="Contraseña actual"
+            type="password"
+            value={passwordActual}
+            onChange={(e) => setPasswordActual(e.target.value)}
+            placeholder="Tu contraseña actual"
+            required
+            helperText="Por seguridad, ingresa tu contraseña actual"
+          />
+
+          {/* Contraseña Nueva */}
+          <Input
+            label="Nueva contraseña"
+            type="password"
+            value={passwordNueva}
+            onChange={(e) => setPasswordNueva(e.target.value)}
+            placeholder="Mínimo 6 caracteres"
+            required
+          />
+
+          {/* Confirmar Contraseña */}
+          <Input
+            label="Confirmar nueva contraseña"
+            type="password"
+            value={passwordConfirmar}
+            onChange={(e) => setPasswordConfirmar(e.target.value)}
+            placeholder="Repite la nueva contraseña"
+            required
+            error={passwordNueva && passwordConfirmar && passwordNueva !== passwordConfirmar ? 'Las contraseñas no coinciden' : undefined}
+          />
+
+          {/* Mensaje de validación positivo */}
+          {passwordNueva && passwordConfirmar && passwordNueva === passwordConfirmar && (
+            <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+              <p className="text-sm text-green-600 font-medium">✅ Las contraseñas coinciden</p>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              onClick={() => {
+                setShowModalPassword(false)
+                setPasswordActual('')
+                setPasswordNueva('')
+                setPasswordConfirmar('')
+              }}
+              variant="secondary"
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={cambiandoPassword || passwordNueva !== passwordConfirmar || !passwordNueva || !passwordActual}
+              variant="primary"
+              className="flex-1"
+            >
+              {cambiandoPassword ? 'Cambiando...' : 'Cambiar Contraseña'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

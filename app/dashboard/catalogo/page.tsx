@@ -17,6 +17,7 @@ interface Propiedad {
   codigo_postal: string | null
   created_at: string
   es_propio: boolean
+  foto_portada?: string | null
   colaboradores?: { user_id: string; nombre: string; email: string }[]
 }
 
@@ -81,8 +82,9 @@ export default function CatalogoPage() {
       ...(propiedadesCompartidasData || []).map(p => ({ ...p, es_propio: false }))
     ]
     
-    // Cargar colaboradores
+    // Cargar colaboradores y foto de portada para cada propiedad
     for (const prop of todasPropiedades) {
+      // Cargar colaboradores
       const { data: colaboradores } = await supabase
         .from('propiedades_colaboradores')
         .select(`
@@ -99,6 +101,16 @@ export default function CatalogoPage() {
         nombre: c.profiles?.nombre || 'Sin nombre',
         email: c.profiles?.email || ''
       })) || []
+
+      // Cargar foto de portada (is_cover = true)
+      const { data: fotoPortada } = await supabase
+        .from('property_images')
+        .select('url_thumbnail')
+        .eq('property_id', prop.id)
+        .eq('is_cover', true)
+        .single()
+      
+      prop.foto_portada = fotoPortada?.url_thumbnail || null
     }
     
     todasPropiedades.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -136,6 +148,41 @@ export default function CatalogoPage() {
 
   const editarPropiedad = (propiedadId: string) => {
     alert('Editar propiedad: ' + propiedadId)
+  }
+
+  const eliminarPropiedad = async (propiedadId: string, nombrePropiedad: string) => {
+    if (!user?.id) return
+
+    const confirmar = confirm(
+      `¿Estás seguro que deseas eliminar la propiedad "${nombrePropiedad}"?\n\n` +
+      'Esta acción NO se puede deshacer y se eliminarán:\n' +
+      '• Todos los datos de la propiedad\n' +
+      '• Colaboradores asociados\n' +
+      '• Fotos y documentos\n' +
+      '• Tickets y servicios\n' +
+      '• Todo el historial'
+    )
+
+    if (!confirmar) return
+
+    try {
+      // Eliminar la propiedad (las eliminaciones en cascada están configuradas en la BD)
+      const { error } = await supabase
+        .from('propiedades')
+        .delete()
+        .eq('id', propiedadId)
+        .eq('user_id', user.id) // Solo puede eliminar el propietario
+
+      if (error) throw error
+
+      // Recargar propiedades
+      await cargarPropiedades(user.id)
+      
+      alert(`✅ Propiedad "${nombrePropiedad}" eliminada correctamente`)
+    } catch (error: any) {
+      console.error('Error al eliminar propiedad:', error)
+      alert('❌ Error al eliminar la propiedad: ' + error.message)
+    }
   }
 
   const handleLogout = async () => {
@@ -297,8 +344,8 @@ export default function CatalogoPage() {
       />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Barra sticky con búsqueda, filtro y títulos */}
-        <div className="sticky top-20 z-20 bg-white rounded-2xl shadow-lg border-2 border-gray-300 p-4 mb-6 backdrop-blur-sm bg-opacity-98">
+        {/* Barra con búsqueda, filtro y títulos (sin sticky) */}
+        <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-300 p-4 mb-6">
           <div className="flex items-center gap-4">
             {/* Buscador tamaño completo */}
             <div className="flex-1">
@@ -331,26 +378,7 @@ export default function CatalogoPage() {
               <svg className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
-            </div>
-
-            {/* Separador vertical */}
-            <div className="h-8 w-px bg-gray-300"></div>
-
-            {/* Títulos de columnas con texto */}
-            <div className="flex items-center gap-3">
-              <div className="w-16 text-center">
-                <span className="text-xs font-bold text-cyan-700">Calendario</span>
-              </div>
-              <div className="w-16 text-center">
-                <span className="text-xs font-bold text-orange-700">Tickets</span>
-              </div>
-              <div className="w-16 text-center">
-                <span className="text-xs font-bold text-amber-700">Inventario</span>
-              </div>
-              <div className="w-16 text-center">
-                <span className="text-xs font-bold text-pink-700">Galería</span>
-              </div>
-            </div>
+            </div>           
           </div>
         </div>
 
@@ -368,142 +396,145 @@ export default function CatalogoPage() {
           
           return matchBusqueda && matchTipo
         }).length > 0 ? (
-          <div className="space-y-4">
-            {propiedades.filter(prop => {
-              // Filtrar por búsqueda
-              const matchBusqueda = busqueda === '' || 
-                prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-                (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
-              
-              // Filtrar por tipo
-              const matchTipo = 
-                filtroPropiedad === 'todos' ||
-                (filtroPropiedad === 'propios' && prop.es_propio) ||
-                (filtroPropiedad === 'compartidos' && !prop.es_propio)
-              
-              return matchBusqueda && matchTipo
-            }).map((prop) => (
-              <div 
-                key={prop.id}
-                onClick={() => abrirHome(prop.id)}
-                className="bg-white rounded-2xl shadow-lg border border-gray-200 p-5 hover:shadow-xl transition-all flex items-center gap-4 cursor-pointer"
-              >
-                {/* Foto thumbnail */}
-                <img 
-                  src="https://via.placeholder.com/120x90/f3f4f6/9ca3af?text=Sin+foto"
-                  alt={prop.nombre}
-                  className="w-32 h-24 object-cover rounded-xl border-2 border-gray-200 flex-shrink-0"
-                />
-
-                {/* Info de la propiedad */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="text-xl font-bold text-gray-800 font-poppins">
-                      {prop.nombre}
-                    </h3>
-                    
-                    <span 
-                      className="text-xs px-2 py-1 rounded-lg font-semibold flex-shrink-0" 
-                      style={{ 
-                        background: prop.es_propio ? '#f0fdf4' : '#f3f4f6', 
-                        color: prop.es_propio ? '#16a34a' : '#6b7280' 
-                      }}
-                    >
-                      {prop.es_propio ? '🏠 Propio' : '👥 Compartido'}
-                    </span>
-
-                    {/* Colaboradores */}
-                    {prop.colaboradores && prop.colaboradores.length > 0 && (
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-400">•</span>
-                        <div className="flex -space-x-2">
-                          {prop.colaboradores.slice(0, 3).map((colab) => (
-                            <div
-                              key={colab.user_id}
-                              className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white"
-                              title={`${colab.nombre} (${colab.email})`}
-                            >
-                              {colab.nombre.charAt(0).toUpperCase()}
-                            </div>
-                          ))}
-                          {prop.colaboradores.length > 3 && (
-                            <div className="w-6 h-6 rounded-full bg-gray-400 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white">
-                              +{prop.colaboradores.length - 3}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="text-sm text-gray-500 font-roboto">
-                    {prop.codigo_postal && (
-                      <span>📍 CP: {prop.codigo_postal}</span>
-                    )}
-                    <span className="text-xs text-gray-400 ml-3">
-                      ID: {prop.id.slice(0, 8)}...
-                    </span>
-                  </div>
-                </div>
-
-                {/* Todos los botones en una sola fila horizontal */}
-                <div className="flex gap-3 flex-shrink-0">
-                  {/* 1. Calendario */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); abrirCalendario(prop.id); }}
-                    className="w-16 h-16 rounded-lg border-2 border-cyan-200 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400 hover:scale-110 transition-all flex items-center justify-center group"
-                    title="Calendario"
-                  >
-                    <svg className="w-10 h-10 text-cyan-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                      <line x1="16" y1="2" x2="16" y2="6"/>
-                      <line x1="8" y1="2" x2="8" y2="6"/>
-                      <line x1="3" y1="10" x2="21" y2="10"/>
-                    </svg>
-                  </button>
-
-                  {/* 2. Tickets */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); abrirTickets(prop.id); }}
-                    className="w-16 h-16 rounded-lg border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-400 hover:scale-110 transition-all flex items-center justify-center group"
-                    title="Tickets"
-                  >
-                    <svg className="w-10 h-10 text-orange-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                      <polyline points="14 2 14 8 20 8"/>
-                      <line x1="9" y1="15" x2="15" y2="15"/>
-                      <line x1="9" y1="12" x2="12" y2="12"/>
-                    </svg>
-                  </button>
-
-                  {/* 3. Inventario */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); abrirInventario(prop.id); }}
-                    className="w-16 h-16 rounded-lg border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 hover:scale-110 transition-all flex items-center justify-center group"
-                    title="Inventario"
-                  >
-                    <svg className="w-10 h-10 text-amber-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                      <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                      <line x1="12" y1="22.08" x2="12" y2="12"/>
-                    </svg>
-                  </button>
-
-                  {/* 4. Galería */}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); abrirGaleria(prop.id); }}
-                    className="w-16 h-16 rounded-lg border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 hover:border-pink-400 hover:scale-110 transition-all flex items-center justify-center group"
-                    title="Galería"
-                  >
-                    <svg className="w-10 h-10 text-pink-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2"/>
-                      <circle cx="8.5" cy="8.5" r="1.5"/>
-                      <path d="M21 15l-5-5L5 21"/>
-                    </svg>
-                  </button>
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+            {/* Encabezados de la tabla */}
+            <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-6 py-3">
+              <div className="flex items-center gap-4">
+                <div className="w-20"></div>
+                <div className="flex-1"></div>
+                <div className="flex gap-4">
+                  <div className="w-12 text-center text-xs font-semibold text-green-600">Home</div>
+                  <div className="w-12 text-center text-xs font-semibold text-cyan-600">Calendario</div>
+                  <div className="w-12 text-center text-xs font-semibold text-orange-600">Tickets</div>
+                  <div className="w-12 text-center text-xs font-semibold text-amber-600">Inventario</div>
+                  <div className="w-12 text-center text-xs font-semibold text-pink-600">Galería</div>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Filas de propiedades */}
+            <div className="divide-y divide-gray-100">
+              {propiedades.filter(prop => {
+                // Filtrar por búsqueda
+                const matchBusqueda = busqueda === '' || 
+                  prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                  (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
+                
+                // Filtrar por tipo
+                const matchTipo = 
+                  filtroPropiedad === 'todos' ||
+                  (filtroPropiedad === 'propios' && prop.es_propio) ||
+                  (filtroPropiedad === 'compartidos' && !prop.es_propio)
+                
+                return matchBusqueda && matchTipo
+              }).map((prop) => (
+                <div 
+                  key={prop.id}
+                  className="px-6 py-4 hover:bg-gray-50 transition-all"
+                >
+                  <div className="flex items-center gap-4">
+                    {/* Foto thumbnail */}
+                    <div>
+                      <img 
+                        src={prop.foto_portada || "https://via.placeholder.com/80x60/f3f4f6/9ca3af?text=Sin+foto"}
+                        alt={prop.nombre}
+                        className="w-20 h-16 object-cover rounded-lg border-2 border-gray-200"
+                        onError={(e) => {
+                          e.currentTarget.src = "https://via.placeholder.com/80x60/f3f4f6/9ca3af?text=Sin+foto"
+                        }}
+                      />
+                    </div>
+
+                    {/* Info de la propiedad */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="text-lg font-bold text-gray-800 font-poppins">
+                          {prop.nombre}
+                        </h3>
+                        
+                        <span 
+                          className="text-xs px-2 py-1 rounded-lg font-semibold flex-shrink-0" 
+                          style={{ 
+                            background: prop.es_propio ? '#f0fdf4' : '#f3f4f6', 
+                            color: prop.es_propio ? '#16a34a' : '#6b7280' 
+                          }}
+                        >
+                          {prop.es_propio ? '🏠 Propio' : '👥 Compartido'}
+                        </span>
+                      </div>
+                      
+                      <div className="text-xs text-gray-400">
+                        ID: {prop.id.slice(0, 8)}...
+                      </div>
+                    </div>
+
+                    {/* Botones de acción */}
+                    <div className="flex gap-4">
+                      {/* 0. Home */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirHome(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-green-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                          <polyline points="9 22 9 12 15 12 15 22"/>
+                        </svg>
+                      </button>
+
+                      {/* 1. Calendario */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirCalendario(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-cyan-200 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-cyan-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                          <line x1="16" y1="2" x2="16" y2="6"/>
+                          <line x1="8" y1="2" x2="8" y2="6"/>
+                          <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                      </button>
+
+                      {/* 2. Tickets */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirTickets(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-orange-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                          <polyline points="14 2 14 8 20 8"/>
+                          <line x1="9" y1="15" x2="15" y2="15"/>
+                          <line x1="9" y1="12" x2="12" y2="12"/>
+                        </svg>
+                      </button>
+
+                      {/* 3. Inventario */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirInventario(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-amber-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                          <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                          <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
+                      </button>
+
+                      {/* 4. Galería */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirGaleria(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 hover:border-pink-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-pink-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/>
+                          <circle cx="8.5" cy="8.5" r="1.5"/>
+                          <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <EmptyState 

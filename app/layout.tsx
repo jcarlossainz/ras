@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Roboto, Poppins } from "next/font/google";
 import "./globals.css";
+import '@/styles/gallery-animations.css';
+
 
 const roboto = Roboto({
   weight: ['300', '400', '500', '700'],
