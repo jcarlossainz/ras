@@ -1,6 +1,6 @@
 /**
  * WizardContainer.tsx
- * Plan C - Contenedor principal del wizard de registro de propiedades
+ * Contenedor principal del wizard de registro de propiedades
  * 
  * Funcionalidades:
  * - Maneja estado global del formulario multi-paso
@@ -10,11 +10,12 @@
  * - Renderiza componentes de paso dinámicamente
  * - Gestión de loading states
  * 
- * Flujo de pasos (4 pasos):
+ * Flujo de pasos (5 pasos):
  * 1. Datos Generales - Información básica y asignaciones
  * 2. Ubicación - Dirección y complejo
  * 3. Espacios - Habitaciones, baños y áreas
  * 4. Datos Específicos - Precios según estados
+ * 5. Servicios - Servicios del inmueble y pagos
  */
 
 'use client';
@@ -27,8 +28,9 @@ import Step1_DatosGenerales from '../steps/Step1_DatosGenerales';
 import Step2_Ubicacion from '../steps/Step2_Ubicacion';
 import Step3_Espacios from '../steps/Step3_Espacios';
 import Step4_Condicionales from '../steps/Step4_Condicionales';
+import Step5_Servicios from '../steps/Step5_Servicios';
 
-// Definición de los pasos del wizard (4 pasos)
+// Definición de los pasos del wizard (5 pasos)
 const WIZARD_STEPS = [
   { 
     id: 1, 
@@ -57,6 +59,13 @@ const WIZARD_STEPS = [
     component: Step4_Condicionales,
     icon: '💼',
     description: 'Asignaciones y precios'
+  },
+  { 
+    id: 5, 
+    name: 'Servicios', 
+    component: Step5_Servicios,
+    icon: '💳',
+    description: 'Servicios del inmueble'
   }
 ];
 
@@ -118,6 +127,9 @@ export default function WizardContainer({
     // Espacios
     espacios: [],
     
+    // Servicios (NUEVO)
+    servicios: [],
+    
     // Metadata
     is_draft: true,
     
@@ -150,6 +162,24 @@ export default function WizardContainer({
         
       case 4: // Datos Específicos - TODO opcional por ahora
         // Agregar validaciones cuando sea necesario
+        break;
+        
+      case 5: // Servicios - TODO opcional por ahora
+        // Validaciones opcionales para servicios
+        // Por ejemplo: verificar que los servicios tengan datos completos
+        if (formData.servicios && formData.servicios.length > 0) {
+          formData.servicios.forEach((servicio, index) => {
+            if (!servicio.nombre) {
+              errors.push(`Servicio #${index + 1}: El nombre es obligatorio`);
+            }
+            if (!servicio.ultima_fecha_pago) {
+              errors.push(`Servicio #${index + 1}: La fecha de último pago es obligatoria`);
+            }
+            if (servicio.monto <= 0) {
+              errors.push(`Servicio #${index + 1}: El monto debe ser mayor a 0`);
+            }
+          });
+        }
         break;
     }
 

@@ -254,3 +254,37 @@ export interface StepConfig {
   description: string;
   isComplete: (data: PropertyFormData) => boolean;
 }
+
+export interface ServicioInmueble {
+  id: string;
+  tipo_servicio: string; // agua, luz, gas, internet, predial, etc.
+  nombre: string; // Nombre personalizado (ej: "CFE Cancún")
+  numero_contrato: string; // Número de contrato o servicio
+  monto: number;
+  es_fijo: boolean; // true = fijo, false = variable
+  ultima_fecha_pago: string; // formato: YYYY-MM-DD
+  frecuencia_valor: number; // 1, 2, 3, etc.
+  frecuencia_unidad: 'dias' | 'semanas' | 'meses' | 'anos';
+  activo: boolean;
+  link_pago?: string; // Opcional: URL para realizar el pago (futuro)
+  notas?: string; // Opcional: notas adicionales
+}
+
+// Agregar a la interfaz PropertyFormData existente:
+export interface PropertyFormData {
+  // ... todos los campos existentes ...
+  servicios?: ServicioInmueble[];
+}
+
+// Para las fechas de pago generadas automáticamente
+export interface FechaPagoServicio {
+  id: string;
+  servicio_id: string;
+  propiedad_id: string;
+  fecha_pago: string; // YYYY-MM-DD
+  monto_estimado: number;
+  pagado: boolean;
+  fecha_pago_real?: string; // Cuando se marca como pagado
+  notas?: string;
+  created_at: string;
+}

@@ -186,8 +186,12 @@ export default function CatalogoPage() {
     router.push('/login')
   }
 
+  // ====================================
+  // 1. FUNCIÓN DE GUARDADO FINAL (con servicios)
+  // ====================================
   const handleWizardSave = async (data: PropertyFormData) => {
     if (!user?.id) {
+      logger.warn('Usuario no autenticado');
       throw new Error('Usuario no autenticado');
     }
 
@@ -195,6 +199,17 @@ export default function CatalogoPage() {
       const propiedadData = {
         user_id: user.id,
         nombre: data.nombre_propiedad,
+        codigo_postal: data.codigo_postal || null,
+        calle: data.calle || null,
+        colonia: data.colonia || null,
+        ciudad: data.ciudad || null,
+        estado: data.estado || null,
+        pais: data.pais || null,
+        referencias: data.referencias || null,
+        google_maps_link: data.google_maps_link || null,
+        es_complejo: data.es_complejo || false,
+        nombre_complejo: data.nombre_complejo || null,
+        amenidades_complejo: data.amenidades_complejo || [],
         tipo_propiedad: data.tipo_propiedad,
         estados: data.estados,
         mobiliario: data.mobiliario,
@@ -216,6 +231,9 @@ export default function CatalogoPage() {
         updated_at: new Date().toISOString()
       };
 
+      let propiedadId: string;
+
+      // Actualizar o crear propiedad
       if (draftIdRef.current) {
         const { error } = await supabase
           .from('propiedades')
@@ -223,6 +241,8 @@ export default function CatalogoPage() {
           .eq('id', draftIdRef.current);
         
         if (error) throw error;
+        propiedadId = draftIdRef.current;
+        
       } else {
         const { data: propiedad, error } = await supabase
           .from('propiedades')
@@ -234,86 +254,183 @@ export default function CatalogoPage() {
           .single();
 
         if (error) throw error;
+        propiedadId = propiedad.id;
       }
+
+      // ========================================
+      // NUEVO: GUARDAR SERVICIOS
+      // ========================================
+      if (data.servicios && data.servicios.length > 0) {
+        logger.log('Guardando servicios...', data.servicios.length);
+        
+        // Preparar servicios para insertar
+        const serviciosParaInsertar = data.servicios.map(servicio => ({
+          propiedad_id: propiedadId,
+          tipo_servicio: servicio.tipo_servicio,
+          nombre: servicio.nombre,
+          numero_contrato: servicio.numero_contrato || null,
+          monto: servicio.monto,
+          es_fijo: servicio.es_fijo,
+          ultima_fecha_pago: servicio.ultima_fecha_pago,
+          frecuencia_valor: servicio.frecuencia_valor,
+          frecuencia_unidad: servicio.frecuencia_unidad,
+          link_pago: servicio.link_pago || null,
+          activo: true,
+          notas: servicio.notas || null
+        }));
+
+        // Insertar servicios en Supabase
+        const { error: errorServicios } = await supabase
+          .from('servicios_inmueble')
+          .insert(serviciosParaInsertar);
+
+        if (errorServicios) {
+          logger.error('Error al guardar servicios:', errorServicios);
+          // No lanzar error, continuar con el guardado de la propiedad
+          toast?.error('Propiedad guardada pero hubo un error al guardar los servicios');
+        } else {
+          logger.log('✅ Servicios guardados correctamente');
+          // Las fechas de pago se generan automáticamente por el trigger en Supabase ✨
+        }
+      }
+      // ========================================
 
       draftIdRef.current = null;
       cargarPropiedades(user.id);
+      toast?.success('✅ Propiedad guardada correctamente');
       
     } catch (error) {
       logger.error('Error al guardar propiedad:', error);
+      toast?.error('❌ Error al guardar la propiedad');
       throw error;
     }
   };
 
-  const handleWizardSaveDraft = async (data: PropertyFormData) => {
-    if (!user?.id) {
-      logger.warn('Usuario no autenticado');
-      return;
+// ====================================
+// 2. FUNCIÓN DE GUARDADO BORRADOR (con servicios)
+// ====================================
+const handleWizardSaveDraft = async (data: PropertyFormData) => {
+  if (!user?.id) {
+    logger.warn('Usuario no autenticado');
+    return;
+  }
+
+  if (isSavingRef.current) {
+    logger.log('Ya hay un guardado en proceso');
+    return;
+  }
+
+  isSavingRef.current = true;
+
+  try {
+    const draftData = {
+      user_id: user.id,
+      nombre: data.nombre_propiedad || 'Borrador sin nombre',
+      codigo_postal: data.codigo_postal || null,
+      calle: data.calle || null,
+      colonia: data.colonia || null,
+      ciudad: data.ciudad || null,
+      estado: data.estado || null,
+      pais: data.pais || null,
+      referencias: data.referencias || null,
+      google_maps_link: data.google_maps_link || null,
+      es_complejo: data.es_complejo || false,
+      nombre_complejo: data.nombre_complejo || null,
+      amenidades_complejo: data.amenidades_complejo || [],
+      tipo_propiedad: data.tipo_propiedad,
+      estados: data.estados,
+      mobiliario: data.mobiliario,
+      capacidad_personas: data.capacidad_personas ? parseInt(data.capacidad_personas) : null,
+      tamano_terreno: data.tamano_terreno ? parseFloat(data.tamano_terreno) : null,
+      tamano_terreno_unit: data.tamano_terreno_unit,
+      tamano_construccion: data.tamano_construccion ? parseFloat(data.tamano_construccion) : null,
+      tamano_construccion_unit: data.tamano_construccion_unit,
+      propietario_id: data.propietario_id || null,
+      supervisor_id: data.supervisor_id || null,
+      inquilino_id: data.inquilino_id || null,
+      fecha_inicio_contrato: data.fecha_inicio_contrato || null,
+      costo_renta_mensual: data.costo_renta_mensual ? parseFloat(data.costo_renta_mensual) : null,
+      precio_noche: data.precio_noche ? parseFloat(data.precio_noche) : null,
+      amenidades_vacacional: data.amenidades_vacacional || [],
+      precio_venta: data.precio_venta ? parseFloat(data.precio_venta) : null,
+      espacios: data.espacios,
+      is_draft: true,
+      updated_at: new Date().toISOString()
+    };
+
+    let propiedadId: string;
+
+    if (draftIdRef.current) {
+      const { error } = await supabase
+        .from('propiedades')
+        .update(draftData)
+        .eq('id', draftIdRef.current);
+
+      if (error) throw error;
+      propiedadId = draftIdRef.current;
+      logger.log(`Borrador actualizado: ${draftIdRef.current}`);
+      
+    } else {
+      const { data: nuevoBorrador, error } = await supabase
+        .from('propiedades')
+        .insert({
+          ...draftData,
+          created_at: new Date().toISOString()
+        })
+        .select('id')
+        .single();
+
+      if (error) throw error;
+      
+      draftIdRef.current = nuevoBorrador.id;
+      propiedadId = nuevoBorrador.id;
+      logger.log(`Borrador creado: ${nuevoBorrador.id}`);
     }
 
-    if (isSavingRef.current) {
-      logger.log('Ya hay un guardado en proceso');
-      return;
+    // ========================================
+    // NUEVO: GUARDAR SERVICIOS EN BORRADOR (OPCIONAL)
+    // ========================================
+    // Puedes decidir si quieres guardar servicios en borradores o solo en guardado final
+    if (data.servicios && data.servicios.length > 0) {
+      logger.log('Guardando servicios en borrador...', data.servicios.length);
+      
+      // Primero eliminar servicios existentes del borrador
+      await supabase
+        .from('servicios_inmueble')
+        .delete()
+        .eq('propiedad_id', propiedadId);
+
+      // Insertar servicios actualizados
+      const serviciosParaInsertar = data.servicios.map(servicio => ({
+        propiedad_id: propiedadId,
+        tipo_servicio: servicio.tipo_servicio,
+        nombre: servicio.nombre,
+        numero_contrato: servicio.numero_contrato || null,
+        monto: servicio.monto,
+        es_fijo: servicio.es_fijo,
+        ultima_fecha_pago: servicio.ultima_fecha_pago,
+        frecuencia_valor: servicio.frecuencia_valor,
+        frecuencia_unidad: servicio.frecuencia_unidad,
+        link_pago: servicio.link_pago || null,
+        activo: true,
+        notas: servicio.notas || null
+      }));
+
+      await supabase
+        .from('servicios_inmueble')
+        .insert(serviciosParaInsertar);
+      
+      logger.log('✅ Servicios de borrador guardados');
     }
+    // ========================================
 
-    isSavingRef.current = true;
-
-    try {
-      const draftData = {
-        user_id: user.id,
-        nombre: data.nombre_propiedad || 'Borrador sin nombre',
-        tipo_propiedad: data.tipo_propiedad,
-        estados: data.estados,
-        mobiliario: data.mobiliario,
-        capacidad_personas: data.capacidad_personas ? parseInt(data.capacidad_personas) : null,
-        tamano_terreno: data.tamano_terreno ? parseFloat(data.tamano_terreno) : null,
-        tamano_terreno_unit: data.tamano_terreno_unit,
-        tamano_construccion: data.tamano_construccion ? parseFloat(data.tamano_construccion) : null,
-        tamano_construccion_unit: data.tamano_construccion_unit,
-        propietario_id: data.propietario_id || null,
-        supervisor_id: data.supervisor_id || null,
-        inquilino_id: data.inquilino_id || null,
-        fecha_inicio_contrato: data.fecha_inicio_contrato || null,
-        costo_renta_mensual: data.costo_renta_mensual ? parseFloat(data.costo_renta_mensual) : null,
-        precio_noche: data.precio_noche ? parseFloat(data.precio_noche) : null,
-        amenidades_vacacional: data.amenidades_vacacional || [],
-        precio_venta: data.precio_venta ? parseFloat(data.precio_venta) : null,
-        espacios: data.espacios,
-        is_draft: true,
-        updated_at: new Date().toISOString()
-      };
-
-      if (draftIdRef.current) {
-        const { error } = await supabase
-          .from('propiedades')
-          .update(draftData)
-          .eq('id', draftIdRef.current);
-
-        if (error) throw error;
-        logger.log(`Borrador actualizado: ${draftIdRef.current}`);
-      } else {
-        const { data: nuevoBorrador, error } = await supabase
-          .from('propiedades')
-          .insert({
-            ...draftData,
-            created_at: new Date().toISOString()
-          })
-          .select('id')
-          .single();
-
-        if (error) throw error;
-        
-        draftIdRef.current = nuevoBorrador.id;
-        logger.log(`Borrador creado: ${nuevoBorrador.id}`);
-      }
-
-    } catch (error) {
-      logger.error('Error al guardar borrador:', error);
-    } finally {
-      setTimeout(() => {
-        isSavingRef.current = false;
-      }, 500);
-    }
+  } catch (error) {
+    logger.error('Error al guardar borrador:', error);
+  } finally {
+    setTimeout(() => {
+      isSavingRef.current = false;
+    }, 500);
+  }
   };
 
   const handleCloseWizard = () => {
