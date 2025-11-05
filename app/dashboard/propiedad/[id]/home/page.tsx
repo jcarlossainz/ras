@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/Lib/supabase/client'
+import { logger } from '@/Lib/logger'
+import { useToast } from '@/hooks/useToast'
+import { useConfirm } from '@/components/ui/confirm-modal'
 import TopBar from '@/components/ui/topbar'
 import Loading from '@/components/ui/loading'
 import CompartirPropiedad from '@/components/CompartirPropiedad'
@@ -74,6 +77,8 @@ interface PropiedadData {
 export default function HomePropiedad() {
   const router = useRouter()
   const params = useParams()
+  const toast = useToast()
+  const confirm = useConfirm()
   const propiedadId = params?.id as string
   
   const [loading, setLoading] = useState(true)
@@ -123,9 +128,9 @@ export default function HomePropiedad() {
       const { data: { user: authUser } } = await supabase.auth.getUser()
       const esPropio = propData.user_id === authUser?.id
       
-      console.log('=== DATOS DE PROPIEDAD ===')
-      console.log('Propiedad completa:', propData)
-      console.log('Espacios:', propData.espacios)
+      logger.log('=== DATOS DE PROPIEDAD ===')
+      logger.log('Propiedad completa:', propData)
+      logger.log('Espacios:', propData.espacios)
       
       let esColaborador = false
       if (!esPropio) {
@@ -168,18 +173,29 @@ export default function HomePropiedad() {
         setInquilino(inquilinoData)
       }
 
-    } catch (error) {
-      console.error('Error al cargar propiedad:', error)
-      alert('Error al cargar la propiedad')
+    } catch (error: any) {
+      logger.error('Error al cargar propiedad:', error)
+      toast.error('Error al cargar la propiedad')
     } finally {
       setLoading(false)
     }
   }
 
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    const confirmed = await confirm.warning(
+      '¿Estás seguro que deseas cerrar sesión?',
+      'Se cerrará tu sesión actual'
+    )
+    
+    if (!confirmed) return
+
+    try {
       await supabase.auth.signOut()
+      toast.success('Sesión cerrada correctamente')
       router.push('/login')
+    } catch (error: any) {
+      logger.error('Error al cerrar sesión:', error)
+      toast.error('Error al cerrar sesión')
     }
   }
 
@@ -192,7 +208,7 @@ export default function HomePropiedad() {
   }
 
   const editarPropiedad = () => {
-    alert('Función de editar en desarrollo')
+    toast.info('Función de editar en desarrollo')
   }
 
   const abrirModalDuplicar = () => {
@@ -204,7 +220,7 @@ export default function HomePropiedad() {
     if (!user?.id || !propiedad) return
 
     if (!propiedad.es_propio) {
-      alert('⚠️ Solo el propietario puede eliminar esta propiedad')
+      toast.error('Solo el propietario puede eliminar esta propiedad')
       return
     }
 
@@ -227,19 +243,19 @@ export default function HomePropiedad() {
     }
 
     if (confirmarNombre !== propiedad.nombre) {
-      alert('❌ El nombre no coincide. Eliminación cancelada.')
+      toast.error('El nombre no coincide. Eliminación cancelada.')
       return
     }
 
     try {
-      console.log('🗑️ Iniciando eliminación de propiedad:', propiedad.id)
+      logger.log('🗑️ Iniciando eliminación de propiedad:', propiedad.id)
       
       const { data, error, status, statusText } = await supabase
         .from('propiedades')
         .delete()
         .eq('id', propiedad.id)
       
-      console.log('Respuesta:', { status, statusText, data, error })
+      logger.log('Respuesta:', { status, statusText, data, error })
 
       if (error) {
         if (error.code === '23503') {
@@ -251,19 +267,19 @@ export default function HomePropiedad() {
         }
       }
 
-      console.log('✅ Eliminación exitosa')
-      alert(`✅ La propiedad "${propiedad.nombre}" ha sido eliminada permanentemente`)
+      logger.log('✅ Eliminación exitosa')
+      toast.success(`La propiedad "${propiedad.nombre}" ha sido eliminada permanentemente`)
       window.location.href = '/dashboard/catalogo'
       
     } catch (error: any) {
-      console.error('❌ ERROR:', error)
-      alert(`❌ Error al eliminar:\n\n${error.message}`)
+      logger.error('❌ ERROR:', error)
+      toast.error(`Error al eliminar: ${error.message}`)
     }
   }
 
   const duplicarPropiedad = async () => {
     if (!nombreDuplicado.trim()) {
-      alert('Por favor ingresa un nombre para la propiedad duplicada')
+      toast.error('Por favor ingresa un nombre para la propiedad duplicada')
       return
     }
 
@@ -291,13 +307,13 @@ export default function HomePropiedad() {
 
       if (error) throw error
 
-      alert('¡Propiedad duplicada exitosamente!')
+      toast.success('¡Propiedad duplicada exitosamente!')
       setShowDuplicarModal(false)
       router.push('/dashboard/catalogo')
       
-    } catch (error) {
-      console.error('Error al duplicar propiedad:', error)
-      alert('Error al duplicar la propiedad')
+    } catch (error: any) {
+      logger.error('Error al duplicar propiedad:', error)
+      toast.error('Error al duplicar la propiedad')
     } finally {
       setDuplicando(false)
     }
@@ -329,7 +345,7 @@ export default function HomePropiedad() {
         onLogout={handleLogout}
       />
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Header con título y botones de acción */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">

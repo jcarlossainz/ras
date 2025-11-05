@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/Lib/supabase/client'
+import { logger } from '@/Lib/logger'
+import { useToast } from '@/hooks/useToast'
+import { useConfirm } from '@/components/ui/confirm-modal'
 import TopBar from '@/components/ui/topbar'
 import Card from '@/components/ui/card'
 import Loading from '@/components/ui/loading'
 
 export default function DashboardPage() {
   const router = useRouter()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -37,15 +42,26 @@ export default function DashboardPage() {
       setProfile(profileData)
       setLoading(false)
     } catch (error) {
-      console.error('Error en checkUser:', error)
+      logger.error('Error en checkUser:', error)
       router.push('/login')
     }
   }
 
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    const confirmed = await confirm.warning(
+      '¿Estás seguro que deseas cerrar sesión?',
+      'Se cerrará tu sesión actual'
+    )
+    
+    if (!confirmed) return
+
+    try {
       await supabase.auth.signOut()
+      toast.success('Sesión cerrada correctamente')
       router.push('/login')
+    } catch (error: any) {
+      logger.error('Error al cerrar sesión:', error)
+      toast.error('Error al cerrar sesión')
     }
   }
 

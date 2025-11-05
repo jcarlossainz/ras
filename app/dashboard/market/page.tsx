@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/Lib/supabase/client'
+import { logger } from '@/Lib/logger'
+import { useToast } from '@/hooks/useToast'
+import { useConfirm } from '@/components/ui/confirm-modal'
+import Button from '@/components/ui/button'
 import TopBar from '@/components/ui/topbar'
 import Loading from '@/components/ui/loading'
 import EmptyState from '@/components/ui/emptystate'
@@ -20,10 +24,13 @@ interface Propiedad {
   estado_anuncio: 'borrador' | 'publicado' | 'pausado' | null
   created_at: string
   es_propio: boolean
+  foto_portada?: string | null
 }
 
 export default function MarketPage() {
   const router = useRouter()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
@@ -75,6 +82,18 @@ export default function MarketPage() {
       ...(propiedadesCompartidasData || []).map(p => ({ ...p, es_propio: false }))
     ]
     
+    // Cargar foto de portada para cada propiedad
+    for (const prop of todasPropiedades) {
+      const { data: fotoPortada } = await supabase
+        .from('property_images')
+        .select('url_thumbnail')
+        .eq('property_id', prop.id)
+        .eq('is_cover', true)
+        .single()
+      
+      prop.foto_portada = fotoPortada?.url_thumbnail || null
+    }
+    
     todasPropiedades.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setPropiedades(todasPropiedades)
   }
@@ -92,9 +111,12 @@ export default function MarketPage() {
       .eq('id', propiedadId)
     
     if (error) {
-      alert('Error al actualizar estado')
+      logger.error('Error actualizando estado:', error)
+      toast.error('Error al actualizar estado')
       return
     }
+    
+    toast.success(`Anuncio ${nuevoEstado === 'publicado' ? 'publicado' : 'pausado'} correctamente`)
     
     // Recargar propiedades
     if (user?.id) cargarPropiedades(user.id)
@@ -104,28 +126,21 @@ export default function MarketPage() {
     router.push(`/dashboard/anuncio/${propiedadId}`)
   }
 
-  const compartirAnuncio = (propiedadId: string) => {
-    const url = `${window.location.origin}/anuncio/${propiedadId}`
-    
-    // Copiar al portapapeles
-    navigator.clipboard.writeText(url).then(() => {
-      alert('¡Link copiado al portapapeles! 📋\n\n' + url)
-    }).catch(() => {
-      alert('Link del anuncio:\n\n' + url)
-    })
-  }
-
-  const compartirWhatsApp = (propiedadId: string, nombrePropiedad: string) => {
-    const url = `${window.location.origin}/anuncio/${propiedadId}`
-    const mensaje = `¡Mira esta propiedad! 🏠\n\n*${nombrePropiedad}*\n\n${url}`
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
-    window.open(whatsappUrl, '_blank')
-  }
-
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    const confirmed = await confirm.warning(
+      '¿Estás seguro que deseas cerrar sesión?',
+      'Se cerrará tu sesión actual'
+    )
+    
+    if (!confirmed) return
+
+    try {
       await supabase.auth.signOut()
+      toast.success('Sesión cerrada correctamente')
       router.push('/login')
+    } catch (error: any) {
+      logger.error('Error al cerrar sesión:', error)
+      toast.error('Error al cerrar sesión')
     }
   }
 
@@ -137,14 +152,24 @@ export default function MarketPage() {
     return tipos
   }
 
-  const getEstadoBadge = (estado: string | null) => {
-    if (estado === 'publicado') {
-      return { bg: 'bg-green-100', text: 'text-green-800', label: '✓ Publicado', icon: '🟢' }
-    } else if (estado === 'pausado') {
-      return { bg: 'bg-orange-100', text: 'text-orange-800', label: '⏸ Pausado', icon: '🟠' }
-    } else {
-      return { bg: 'bg-gray-100', text: 'text-gray-800', label: '📝 Borrador', icon: '⚪' }
+  const getOperacionLabel = (prop: Propiedad): string => {
+    if (prop.precio_noche) return 'Renta Vacacional'
+    if (prop.costo_renta_mensual) return 'Renta Largo Plazo'
+    if (prop.precio_venta) return 'Venta'
+    return 'Sin modalidad'
+  }
+
+  const getPrecioDisplay = (prop: Propiedad) => {
+    if (prop.precio_venta) {
+      return { monto: `$${prop.precio_venta.toLocaleString('es-MX')}`, periodo: '' }
     }
+    if (prop.costo_renta_mensual) {
+      return { monto: `$${prop.costo_renta_mensual.toLocaleString('es-MX')}`, periodo: '/ mes' }
+    }
+    if (prop.precio_noche) {
+      return { monto: `USD ${prop.precio_noche.toFixed(2)}`, periodo: '/ noche' }
+    }
+    return { monto: 'Sin precio', periodo: '' }
   }
 
   if (loading) {
@@ -163,27 +188,9 @@ export default function MarketPage() {
         onLogout={handleLogout}
       />
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        
-        {/* Header con descripción */}
-        <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-6 mb-6">
-          <div className="flex items-start gap-4">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-              <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2a2 2 0 0 1 2 2v1.5a7 7 0 0 1 4.5 6.196V15a3 3 0 0 0 1.5 2.598v.902H4v-.902A3 3 0 0 0 5.5 15v-3.304A7 7 0 0 1 10 5.5V4a2 2 0 0 1 2-2z"/>
-                <path d="M9 19a3 3 0 0 0 6 0"/>
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Impulsa tus propiedades</h2>
-              <p className="text-gray-600">
-                Publica y comparte tus anuncios fácilmente. Cada propiedad tiene su propia landing page lista para promocionar en redes sociales, WhatsApp o donde quieras. 🚀
-              </p>
-            </div>
-          </div>
-        </div>
+      <main className="max-w-5xl mx-auto px-4 py-8">
 
-        {/* Filtros y búsqueda */}
+        {/* Filtros y búsqueda - MANTENIDA ORIGINAL */}
         <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-5 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             
@@ -237,7 +244,7 @@ export default function MarketPage() {
           </div>
         </div>
 
-        {/* Lista de propiedades */}
+        {/* Grid de tarjetas - 3 COLUMNAS */}
         {propiedades.filter(prop => {
           // Filtro búsqueda
           const matchBusqueda = busqueda === '' || 
@@ -258,7 +265,7 @@ export default function MarketPage() {
           
           return matchBusqueda && matchEstado && matchOperacion
         }).length > 0 ? (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {propiedades.filter(prop => {
               const matchBusqueda = busqueda === '' || 
                 prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -276,118 +283,100 @@ export default function MarketPage() {
               
               return matchBusqueda && matchEstado && matchOperacion
             }).map((prop) => {
-              const estadoBadge = getEstadoBadge(prop.estado_anuncio)
-              const operaciones = getOperacionTipo(prop)
+              const precio = getPrecioDisplay(prop)
+              const operacion = getOperacionLabel(prop)
+              const isActivo = prop.estado_anuncio === 'publicado'
               
               return (
                 <div 
                   key={prop.id}
-                  className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-5 hover:shadow-xl transition-all"
+                  className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all"
                 >
-                  <div className="flex items-center gap-4">
-                    {/* Thumbnail */}
-                    <div 
-                      onClick={() => abrirAnuncio(prop.id)}
-                      className="cursor-pointer"
-                    >
-                      <img 
-                        src="https://via.placeholder.com/160x120/f3f4f6/9ca3af?text=Sin+foto"
+                  {/* Imagen */}
+                  <div 
+                    onClick={() => abrirAnuncio(prop.id)}
+                    className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200 cursor-pointer overflow-hidden group"
+                  >
+                    {prop.foto_portada ? (
+                      <img
+                        src={prop.foto_portada}
                         alt={prop.nombre}
-                        className="w-40 h-28 object-cover rounded-xl border-2 border-gray-200 flex-shrink-0"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          e.currentTarget.src = "https://via.placeholder.com/400x300/f3f4f6/9ca3af?text=Sin+foto"
+                        }}
                       />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <svg className="w-16 h-16 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </div>
+                    )}
+                    
+                    {/* Badge Activo/Inactivo */}
+                    <div className="absolute top-3 right-3">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm ${
+                        isActivo 
+                          ? 'bg-green-500/90 text-white' 
+                          : 'bg-gray-200/90 text-gray-700'
+                      }`}>
+                        {isActivo ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Contenido */}
+                  <div className="p-4">
+                    {/* Título */}
+                    <h3 
+                      onClick={() => abrirAnuncio(prop.id)}
+                      className="text-lg font-bold text-gray-900 mb-1 cursor-pointer hover:text-ras-azul line-clamp-1"
+                    >
+                      {prop.nombre}
+                    </h3>
+                    
+                    {/* Ubicación y código */}
+                    <p className="text-xs text-gray-500 mb-3">
+                      {prop.id.slice(0, 11).toUpperCase()} • {prop.estados?.[0] || 'Sin ubicación'}
+                    </p>
+
+                    {/* Tipo de operación */}
+                    <div className="mb-3">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-medium">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {operacion}
+                      </span>
                     </div>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <h3 
-                          onClick={() => abrirAnuncio(prop.id)}
-                          className="text-xl font-bold text-gray-800 font-poppins cursor-pointer hover:text-purple-600"
-                        >
-                          {prop.nombre}
-                        </h3>
-                        
-                        {/* Badge estado */}
-                        <span className={`text-xs px-3 py-1 rounded-full font-semibold ${estadoBadge.bg} ${estadoBadge.text}`}>
-                          {estadoBadge.label}
-                        </span>
-
-                        {/* Badge propio/compartido */}
-                        <span 
-                          className="text-xs px-2 py-1 rounded-lg font-semibold" 
-                          style={{ 
-                            background: prop.es_propio ? '#f0fdf4' : '#f3f4f6', 
-                            color: prop.es_propio ? '#16a34a' : '#6b7280' 
-                          }}
-                        >
-                          {prop.es_propio ? '🏠 Propio' : '👥 Compartido'}
-                        </span>
-                      </div>
-
-                      {/* Tipo de operación */}
-                      <div className="flex items-center gap-2 mb-2">
-                        {operaciones.length > 0 ? (
-                          operaciones.map(op => (
-                            <span key={op} className="text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded font-medium">
-                              {op === 'venta' && '💰 Venta'}
-                              {op === 'renta' && '🏘️ Renta'}
-                              {op === 'vacacional' && '🏖️ Vacacional'}
-                            </span>
-                          ))
-                        ) : (
-                          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded">
-                            Sin precio definido
-                          </span>
-                        )}
-                      </div>
-                      
-                      <div className="text-sm text-gray-500 font-roboto">
-                        {prop.codigo_postal && (
-                          <span>📍 CP: {prop.codigo_postal}</span>
-                        )}
-                        <span className="text-xs text-gray-400 ml-3">
-                          ID: {prop.id.slice(0, 8)}...
-                        </span>
+                    {/* Precio */}
+                    <div className="mb-4">
+                      <div className="text-2xl font-bold text-gray-900">
+                        {precio.monto} <span className="text-sm font-normal text-gray-600">{precio.periodo}</span>
                       </div>
                     </div>
 
-                    {/* Botones de acción */}
-                    <div className="flex flex-col gap-2">
-                      {/* Toggle Publicar/Pausar */}
-                      <button
-                        onClick={() => toggleEstadoAnuncio(prop.id, prop.estado_anuncio)}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                          prop.estado_anuncio === 'publicado'
-                            ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                            : 'bg-green-100 text-green-700 hover:bg-green-200'
-                        }`}
-                      >
-                        {prop.estado_anuncio === 'publicado' ? '⏸ Pausar' : '▶ Publicar'}
-                      </button>
-
-                      {/* Botón Editar */}
-                      <button
+                    {/* Botones usando componente Button */}
+                    <div className="flex gap-2">
+                      <Button
                         onClick={() => abrirAnuncio(prop.id)}
-                        className="px-4 py-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-all font-medium"
+                        variant="primary"
+                        size="sm"
+                        className="flex-1"
                       >
-                        ✏️ Editar
-                      </button>
-
-                      {/* Botón Compartir */}
-                      <button
-                        onClick={() => compartirAnuncio(prop.id)}
-                        className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-all font-medium"
+                        Editar
+                      </Button>
+                      <Button
+                        onClick={() => toggleEstadoAnuncio(prop.id, prop.estado_anuncio)}
+                        variant={isActivo ? 'danger' : 'success'}
+                        size="sm"
+                        className="flex-1"
                       >
-                        🔗 Copiar link
-                      </button>
-
-                      {/* Botón WhatsApp */}
-                      <button
-                        onClick={() => compartirWhatsApp(prop.id, prop.nombre)}
-                        className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all font-medium"
-                      >
-                        📱 WhatsApp
-                      </button>
+                        {isActivo ? 'Pausar' : 'Activar'}
+                      </Button>
                     </div>
                   </div>
                 </div>

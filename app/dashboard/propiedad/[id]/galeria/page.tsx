@@ -336,12 +336,12 @@ export default function GaleriaPage() {
         onLogout={handleLogout}
       />
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Estadísticas */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-3 mb-6">
           <div className="flex items-center justify-between">
             <label className="px-6 py-3 bg-gradient-to-r from-ras-azul to-ras-turquesa text-white rounded-xl cursor-pointer hover:shadow-xl transition-all font-semibold shadow-lg">
-              {isUploading ? 'Subiendo...' : '📸 Subir Fotos'}
+              {isUploading ? 'Subiendo...' : 'Subir Fotos'}
               <input
                 type="file"
                 multiple

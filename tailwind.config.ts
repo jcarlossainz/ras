@@ -19,6 +19,16 @@ const config: Config = {
       },
     },
   },
+  
   plugins: [],
-};
+  
+  animation: {
+    'slide-in': 'slide-in-right 0.3s ease-out',
+    'slide-out': 'slide-out-right 0.3s ease-in',
+    'loading-bar': 'loading-bar 1.5s ease-in-out infinite',
+  }
+  
+  };
+
+
 export default config;
