@@ -1,8 +1,35 @@
+/**
+ * SpaceTemplates.tsx
+ * Plan C - Selector de plantillas predefinidas de espacios por tipo de propiedad
+ * 
+ * Funcionalidades:
+ * - Plantillas listas para 10 tipos de propiedades diferentes
+ * - Cada plantilla incluye espacios preconfigura dos con equipamiento típico
+ * - Aplicación instantánea de toda la configuración de espacios
+ * - Grid responsive que se adapta a diferentes tamaños de pantalla
+ * - Generación automática de IDs únicos para cada espacio
+ * 
+ * Plantillas disponibles:
+ * 1. Departamento - 2 hab, 1 baño, cocina, sala
+ * 2. Casa - 3 hab, 2.5 baños, jardín
+ * 3. Villa - 4 hab, 4.5 baños, alberca
+ * 4. Condominio - 3 hab, 2.5 baños, jardín
+ * 5. Penthouse - 3 hab, 2.5 baños, rooftop
+ * 6. Loft - 1 hab, 1 baño, espacio abierto
+ * 7. Estudio - Espacio integrado todo en uno
+ * 8. Oficina - Espacio comercial básico
+ * 9. Local Comercial - Local adaptable
+ * 10. Bodega - Almacenamiento con oficina
+ */
+
 'use client';
 
 import React from 'react';
 import { Space } from '@/types/property';
 
+/**
+ * Interfaz para definir una plantilla de propiedad
+ */
 interface PropertyTemplate {
   id: string;
   name: string;
@@ -15,7 +42,10 @@ interface SpaceTemplatesProps {
   onCerrar: () => void;
 }
 
-// Templates definidos aquí (puedes importarlos desde property-templates.ts)
+/**
+ * Catálogo de plantillas predefinidas por tipo de propiedad
+ * Cada plantilla incluye espacios con equipamiento típico y configuración de camas
+ */
 const PROPERTY_TEMPLATES: PropertyTemplate[] = [
   {
     id: 'departamento',
@@ -162,6 +192,11 @@ const PROPERTY_TEMPLATES: PropertyTemplate[] = [
 
 const SpaceTemplates: React.FC<SpaceTemplatesProps> = ({ onAplicarTemplate, onCerrar }) => {
   
+  /**
+   * Maneja la selección de una plantilla
+   * Genera IDs únicos para cada espacio y aplica la plantilla
+   * @param template - La plantilla seleccionada
+   */
   const handleSelectTemplate = (template: PropertyTemplate) => {
     // Generar IDs únicos para cada espacio
     const espaciosConIds = template.spaces.map((espacio, index) => ({
@@ -175,7 +210,7 @@ const SpaceTemplates: React.FC<SpaceTemplatesProps> = ({ onAplicarTemplate, onCe
 
   return (
     <div className="bg-white rounded-xl p-5">
-      {/* Header */}
+      {/* Header con título e icono */}
       <div className="mb-4">
         <h3 className="text-lg font-bold text-gray-900 font-poppins flex items-center gap-2">
           <svg className="w-5 h-5 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -188,7 +223,7 @@ const SpaceTemplates: React.FC<SpaceTemplatesProps> = ({ onAplicarTemplate, onCe
         </p>
       </div>
 
-      {/* Templates Grid */}
+      {/* Grid de plantillas - Responsive */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {PROPERTY_TEMPLATES.map((template) => (
           <button
@@ -196,23 +231,23 @@ const SpaceTemplates: React.FC<SpaceTemplatesProps> = ({ onAplicarTemplate, onCe
             onClick={() => handleSelectTemplate(template)}
             className="group relative bg-gradient-to-br from-stone-100 to-stone-50 border-2 border-stone-300 rounded-lg p-4 text-left hover:from-stone-200 hover:to-stone-100 hover:border-ras-azul hover:shadow-lg transition-all duration-200 hover:-translate-y-0.5"
           >
-            {/* Title */}
+            {/* Título de la plantilla */}
             <h4 className="font-bold text-gray-800 text-base mb-2 font-poppins">
               {template.name}
             </h4>
             
-            {/* Description */}
+            {/* Descripción */}
             <p className="text-xs text-gray-600 font-roboto">
               {template.description}
             </p>
 
-            {/* Hover effect */}
+            {/* Efecto de hover */}
             <div className="absolute inset-0 bg-gradient-to-br from-ras-azul/5 to-ras-turquesa/5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           </button>
         ))}
       </div>
 
-      {/* Info footer */}
+      {/* Footer informativo */}
       <div className="mt-4 pt-3 border-t border-gray-300">
         <p className="text-xs text-gray-600 flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

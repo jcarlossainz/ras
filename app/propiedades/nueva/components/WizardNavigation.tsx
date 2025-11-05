@@ -1,5 +1,6 @@
 'use client';
 
+import { useConfirm } from '@/components/ui/confirm-modal';
 import Button from '@/components/ui/button';
 
 interface WizardNavigationProps {
@@ -21,8 +22,20 @@ export default function WizardNavigation({
   onSaveDraft,
   onFinalSave,
 }: WizardNavigationProps) {
+  const confirm = useConfirm();
   const isFirstStep = currentStep === 1;
   const isLastStep = currentStep === totalSteps;
+
+  const handleCancel = async () => {
+    const confirmed = await confirm.warning(
+      '¿Cancelar formulario?',
+      'Los cambios no guardados se perderán.'
+    );
+    
+    if (confirmed) {
+      window.history.back();
+    }
+  };
 
   return (
     <div className="mt-8 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -100,11 +113,7 @@ export default function WizardNavigation({
           <Button
             type="button"
             variant="outline"
-            onClick={() => {
-              if (confirm('¿Estás seguro de cancelar? Los cambios no guardados se perderán.')) {
-                window.history.back();
-              }
-            }}
+            onClick={handleCancel}
             disabled={isLoading}
             className="w-full sm:w-auto text-red-600 hover:text-red-700 hover:border-red-300"
           >

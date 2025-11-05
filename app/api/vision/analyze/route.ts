@@ -1,170 +1,163 @@
 // 📁 src/app/api/vision/analyze/route.ts
-// API para analizar imágenes con Google Cloud Vision
-
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { analyzeImage } from '@/lib/google-vision';
-import { supabase } from '@/lib/supabase/client';
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { propertyId, imageId, imageUrl, spaceType } = body;
+// Cliente Supabase con permisos de servicio
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-    if (!propertyId || !imageId || !imageUrl) {
-      return NextResponse.json(
-        { error: 'Faltan parámetros requeridos' },
-        { status: 400 }
-      );
-    }
-
-    console.log('🔍 Iniciando análisis de imagen:', imageId);
-
-    // 1. Analizar imagen con Google Vision
-    const detectedObjects = await analyzeImage(imageUrl);
-
-    if (detectedObjects.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No se detectaron objetos en la imagen',
-        count: 0
-      });
-    }
-
-    // 2. Guardar objetos en la base de datos
-    const inventoryItems = detectedObjects.map(obj => ({
-      property_id: propertyId,
-      image_id: imageId,
-      object_name: obj.name,
-      confidence: obj.confidence,
-      space_type: spaceType || null,
-      image_url: imageUrl
-    }));
-
-    const { data, error } = await supabase
-      .from('property_inventory')
-      .insert(inventoryItems)
-      .select();
-
-    if (error) {
-      console.error('❌ Error guardando en BD:', error);
-      throw error;
-    }
-
-    console.log(`✅ ${data.length} objetos guardados en inventario`);
-
-    return NextResponse.json({
-      success: true,
-      message: `${data.length} objetos detectados y guardados`,
-      count: data.length,
-      objects: detectedObjects
-    });
-
-  } catch (error) {
-    console.error('❌ Error en API analyze:', error);
-    return NextResponse.json(
-      { 
-        error: 'Error al analizar imagen',
-        details: error instanceof Error ? error.message : 'Error desconocido'
-      },
-      { status: 500 }
-    );
-  }
-}
-
-// Endpoint para análisis masivo
 export async function PUT(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { propertyId } = body;
+    const { propertyId } = await request.json();
 
     if (!propertyId) {
-      return NextResponse.json(
-        { error: 'Property ID es requerido' },
-        { status: 400 }
-      );
+      return NextResponse.json({ 
+        success: false, 
+        error: 'propertyId es requerido' 
+      }, { status: 400 });
     }
 
-    console.log('🔍 Iniciando análisis masivo para propiedad:', propertyId);
+    console.log(`🔍 Iniciando análisis de propiedad: ${propertyId}`);
 
-    // 1. Obtener todas las imágenes de la propiedad
+    // 1. Obtener la propiedad con sus espacios
+    const { data: propertyData, error: propertyError } = await supabase
+      .from('propiedades')
+      .select('id, nombre, espacios')
+      .eq('id', propertyId)
+      .single();
+
+    if (propertyError) {
+      console.error('❌ Error obteniendo propiedad:', propertyError);
+      return NextResponse.json({ 
+        success: false, 
+        error: `Error obteniendo propiedad: ${propertyError.message}` 
+      }, { status: 500 });
+    }
+
+    // 2. Crear mapa de espacios (ID → Nombre)
+    const spacesMap = new Map<string, string>();
+    
+    if (propertyData.espacios && Array.isArray(propertyData.espacios)) {
+      propertyData.espacios.forEach((espacio: any) => {
+        const id = espacio.id || espacio.type;
+        const name = espacio.name || espacio.type || 'Sin nombre';
+        spacesMap.set(id, name);
+      });
+      console.log(`📍 Cargados ${spacesMap.size} espacios`);
+    }
+
+    // 3. Obtener todas las imágenes de la propiedad
     const { data: images, error: imagesError } = await supabase
       .from('property_images')
-      .select('*')
+      .select('id, url, space_type')
       .eq('property_id', propertyId);
 
-    if (imagesError) throw imagesError;
-
-    if (!images || images.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: 'No hay imágenes para analizar',
-        count: 0
-      });
+    if (imagesError) {
+      console.error('❌ Error obteniendo imágenes:', imagesError);
+      return NextResponse.json({ 
+        success: false, 
+        error: `Error obteniendo imágenes: ${imagesError.message}` 
+      }, { status: 500 });
     }
 
-    // 2. Limpiar inventario anterior de esta propiedad
-    await supabase
-      .from('property_inventory')
-      .delete()
-      .eq('property_id', propertyId);
+    if (!images || images.length === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No hay imágenes para analizar' 
+      }, { status: 404 });
+    }
 
-    // 3. Analizar cada imagen
-    let totalObjects = 0;
-    const results = [];
+    console.log(`📸 Encontradas ${images.length} imágenes para analizar`);
+
+    // 4. Analizar cada imagen
+    let totalObjectsDetected = 0;
+    const inventoryItems = [];
 
     for (const image of images) {
       try {
-        const detectedObjects = await analyzeImage(image.url);
+        console.log(`🔍 Analizando imagen: ${image.id}`);
         
-        if (detectedObjects.length > 0) {
-          const inventoryItems = detectedObjects.map(obj => ({
-            property_id: propertyId,
-            image_id: image.id,
-            object_name: obj.name,
-            confidence: obj.confidence,
-            space_type: image.space_type || null,
-            image_url: image.url_thumbnail || image.url
-          }));
+        // Analizar imagen con Google Vision
+        const detectedObjects = await analyzeImage(image.url);
 
-          const { error } = await supabase
-            .from('property_inventory')
-            .insert(inventoryItems);
-
-          if (!error) {
-            totalObjects += detectedObjects.length;
-            results.push({
-              imageId: image.id,
-              objectsFound: detectedObjects.length
-            });
-          }
+        if (detectedObjects.length === 0) {
+          console.log(`⚠️ No se detectaron objetos en imagen ${image.id}`);
+          continue;
         }
 
-        // Delay entre requests
+        console.log(`✅ Detectados ${detectedObjects.length} objetos en imagen ${image.id}`);
+
+        // Extraer solo los nombres para labels
+        const labels = detectedObjects.map(obj => obj.name);
+
+        // Obtener el nombre del espacio
+        const spaceName = image.space_type 
+          ? (spacesMap.get(image.space_type) || image.space_type)
+          : null;
+
+        // Crear items de inventario para cada objeto detectado
+        for (const obj of detectedObjects) {
+          inventoryItems.push({
+            property_id: propertyId,
+            image_id: image.id,
+            image_url: image.url,
+            object_name: obj.name,
+            space_type: spaceName, // Guardamos el NOMBRE, no el ID
+            labels: labels.join(', '),
+            created_at: new Date().toISOString()
+          });
+        }
+
+        totalObjectsDetected += detectedObjects.length;
+
+        // Delay de 500ms para no saturar la API de Google
         await new Promise(resolve => setTimeout(resolve, 500));
 
-      } catch (error) {
-        console.error(`Error analizando imagen ${image.id}:`, error);
+      } catch (error: any) {
+        console.error(`❌ Error analizando imagen ${image.id}:`, error);
+        // Continuar con la siguiente imagen
       }
     }
 
-    console.log(`✅ Análisis masivo completado: ${totalObjects} objetos`);
+    console.log(`📦 Total de objetos detectados: ${totalObjectsDetected}`);
+
+    // 5. Guardar todo en la base de datos
+    if (inventoryItems.length > 0) {
+      const { error: insertError } = await supabase
+        .from('property_inventory')
+        .insert(inventoryItems);
+
+      if (insertError) {
+        console.error('❌ Error insertando inventario:', insertError);
+        return NextResponse.json({ 
+          success: false, 
+          error: `Error guardando inventario: ${insertError.message}` 
+        }, { status: 500 });
+      }
+
+      console.log(`✅ Guardados ${inventoryItems.length} items en el inventario`);
+    } else {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'No se detectaron objetos en ninguna imagen' 
+      }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
-      message: `Análisis completado: ${totalObjects} objetos detectados`,
-      imagesProcessed: images.length,
-      totalObjects,
-      results
+      message: `Se detectaron ${totalObjectsDetected} objetos en ${images.length} imágenes`,
+      objectsDetected: totalObjectsDetected,
+      imagesAnalyzed: images.length
     });
 
-  } catch (error) {
-    console.error('❌ Error en análisis masivo:', error);
-    return NextResponse.json(
-      { 
-        error: 'Error en análisis masivo',
-        details: error instanceof Error ? error.message : 'Error desconocido'
-      },
-      { status: 500 }
-    );
+  } catch (error: any) {
+    console.error('❌ Error en análisis de Vision:', error);
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message || 'Error desconocido'
+    }, { status: 500 });
   }
 }

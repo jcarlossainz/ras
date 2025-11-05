@@ -3,7 +3,10 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase/client';
+import { supabase } from '@/Lib/supabase/client';
+import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/components/ui/confirm-modal';
+import { logger } from '@/Lib/logger';
 import TopBar from '@/components/ui/topbar';
 import Loading from '@/components/ui/loading';
 import EmptyState from '@/components/ui/emptystate';
@@ -35,6 +38,8 @@ export default function InventarioPage() {
   const params = useParams();
   const router = useRouter();
   const propertyId = params.id as string;
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [user, setUser] = useState<any>(null);
   const [property, setProperty] = useState<PropertyData | null>(null);
@@ -90,9 +95,9 @@ export default function InventarioPage() {
       // Cargar inventario
       await loadInventory();
 
-    } catch (error) {
-      console.error('❌ Error cargando datos:', error);
-      alert('Error al cargar la propiedad');
+    } catch (error: any) {
+      logger.error('Error cargando datos:', error);
+      toast.error('Error al cargar la propiedad');
     } finally {
       setLoading(false);
     }
@@ -108,15 +113,18 @@ export default function InventarioPage() {
 
       if (error) throw error;
       setInventory(data || []);
-    } catch (error) {
-      console.error('❌ Error cargando inventario:', error);
+    } catch (error: any) {
+      logger.error('Error cargando inventario:', error);
     }
   };
 
   const handleAnalyzeAll = async () => {
-    if (!confirm('¿Analizar todas las fotos de la galería? Esto puede tomar varios minutos.')) {
-      return;
-    }
+    const confirmed = await confirm.warning(
+      '¿Analizar todas las fotos de la galería?',
+      'Este proceso puede tomar varios minutos dependiendo de la cantidad de imágenes.'
+    );
+    
+    if (!confirmed) return;
 
     try {
       setAnalyzing(true);
@@ -130,15 +138,15 @@ export default function InventarioPage() {
       const result = await response.json();
 
       if (result.success) {
-        alert(`✅ ${result.message}`);
+        toast.success(result.message);
         await loadInventory();
       } else {
         throw new Error(result.error);
       }
 
-    } catch (error) {
-      console.error('❌ Error en análisis:', error);
-      alert('Error al analizar imágenes');
+    } catch (error: any) {
+      logger.error('Error en análisis:', error);
+      toast.error('Error al analizar imágenes');
     } finally {
       setAnalyzing(false);
     }
@@ -167,15 +175,20 @@ export default function InventarioPage() {
       await loadInventory();
       setShowEditModal(false);
       setEditingItem(null);
-      alert('✅ Item actualizado');
-    } catch (error) {
-      console.error('❌ Error actualizando item:', error);
-      alert('Error al actualizar');
+      toast.success('Item actualizado correctamente');
+    } catch (error: any) {
+      logger.error('Error actualizando item:', error);
+      toast.error('Error al actualizar el item');
     }
   };
 
   const handleDeleteItem = async (itemId: string) => {
-    if (!confirm('¿Eliminar este item del inventario?')) return;
+    const confirmed = await confirm.danger(
+      '¿Eliminar este item del inventario?',
+      'Esta acción no se puede deshacer.'
+    );
+    
+    if (!confirmed) return;
 
     try {
       const { error } = await supabase
@@ -186,68 +199,70 @@ export default function InventarioPage() {
       if (error) throw error;
 
       setInventory(inventory.filter(item => item.id !== itemId));
-      alert('✅ Item eliminado');
-    } catch (error) {
-      console.error('❌ Error eliminando item:', error);
-      alert('Error al eliminar');
-    }
-  };
-
-  const handleClearAll = async () => {
-    if (!confirm('⚠️ ¿Eliminar TODO el inventario de esta propiedad? Esta acción no se puede deshacer.')) {
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('property_inventory')
-        .delete()
-        .eq('property_id', propertyId);
-
-      if (error) throw error;
-
-      setInventory([]);
-      alert('✅ Inventario limpiado');
-    } catch (error) {
-      console.error('❌ Error limpiando inventario:', error);
-      alert('Error al limpiar inventario');
+      toast.success('Item eliminado correctamente');
+    } catch (error: any) {
+      logger.error('Error eliminando item:', error);
+      toast.error('Error al eliminar el item');
     }
   };
 
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      await supabase.auth.signOut();
-      router.push('/login');
-    }
+    const confirmed = await confirm.warning('¿Cerrar sesión?');
+    if (!confirmed) return;
+    
+    await supabase.auth.signOut();
+    router.push('/login');
   };
 
-  // Obtener nombre del espacio por ID
-  const getSpaceName = (spaceId: string | null) => {
+  // Función para obtener el nombre real del espacio
+  const getSpaceName = (spaceId: string | null): string => {
     if (!spaceId) return 'Sin espacio';
+    
     const space = spaces.find(s => s.id === spaceId);
-    return space?.nombre || spaceId.slice(0, 8) + '...';
+    return space ? space.nombre : 'Espacio desconocido';
   };
-
-  // Obtener espacios únicos del inventario
-  const uniqueSpaces = Array.from(
-    new Set(inventory.map(item => item.space_type).filter(Boolean))
-  ) as string[];
 
   // Filtrar inventario
-  const filteredInventory = inventory.filter(item => {
-    const matchSearch = !searchQuery || 
+  const filteredInventory = inventory.filter((item) => {
+    // Filtro de búsqueda
+    const matchesSearch = 
       item.object_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.labels && item.labels.toLowerCase().includes(searchQuery.toLowerCase()));
-    
-    const matchSpace = filterSpace === 'all' || 
+
+    // Filtro por espacio
+    const matchesSpace = 
+      filterSpace === 'all' ||
       (filterSpace === 'sin-espacio' && !item.space_type) ||
       item.space_type === filterSpace;
 
-    return matchSearch && matchSpace;
+    return matchesSearch && matchesSpace;
   });
 
+  // Obtener espacios únicos del inventario
+  const uniqueSpaces = Array.from(new Set(
+    inventory
+      .filter(item => item.space_type)
+      .map(item => item.space_type as string)
+  ));
+
   if (loading) {
-    return <Loading message="Cargando inventario..." />;
+    return <Loading />;
+  }
+
+  if (!property) {
+    return (
+      <EmptyState 
+        icon={
+          <svg className="w-12 h-12 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        }
+        title="Propiedad no encontrada"
+        description="No se pudo cargar la información de la propiedad"
+      />
+    );
   }
 
   return (
@@ -261,30 +276,23 @@ export default function InventarioPage() {
       />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Estadística simple */}
+        {/* Barra de acción superior */}
         {inventory.length > 0 && (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
             <div className="flex items-center justify-between">
-              <div>
+              {/* Botón Analizar a la IZQUIERDA */}
+              <button
+                onClick={handleAnalyzeAll}
+                disabled={analyzing}
+                className="px-6 py-3 bg-gradient-to-r from-ras-azul to-ras-turquesa text-white rounded-xl hover:shadow-xl transition-all disabled:bg-gray-400 font-semibold"
+              >
+                {analyzing ? 'Analizando...' : '🔍 Analizar Galería'}
+              </button>
+              
+              {/* Total de Items a la DERECHA */}
+              <div className="text-right">
                 <h3 className="text-sm font-medium text-gray-600 mb-1">Total de Items</h3>
                 <p className="text-4xl font-bold text-ras-azul">{inventory.length}</p>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleAnalyzeAll}
-                  disabled={analyzing}
-                  className="px-6 py-3 bg-gradient-to-r from-ras-azul to-ras-turquesa text-white rounded-xl hover:shadow-xl transition-all disabled:bg-gray-400 font-semibold"
-                >
-                  {analyzing ? 'Analizando...' : '🔍 Analizar Galería'}
-                </button>
-                {inventory.length > 0 && (
-                  <button
-                    onClick={handleClearAll}
-                    className="px-6 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all font-semibold"
-                  >
-                    Limpiar Todo
-                  </button>
-                )}
               </div>
             </div>
           </div>
@@ -390,7 +398,7 @@ export default function InventarioPage() {
                       )}
                     </div>
 
-                    {/* Espacio */}
+                    {/* Espacio - MOSTRANDO NOMBRE REAL */}
                     <div className="col-span-3">
                       <span className="px-3 py-1 text-sm rounded-lg bg-blue-100 text-blue-700 font-medium">
                         {getSpaceName(item.space_type)}

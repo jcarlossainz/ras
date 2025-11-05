@@ -1,3 +1,15 @@
+/**
+ * WizardProgress.tsx
+ * Plan C - Componente de progreso del wizard con barra de progreso y pasos visuales
+ * 
+ * Funcionalidades:
+ * - Muestra progreso visual con porcentaje
+ * - Calcula completitud basada en campos obligatorios por paso
+ * - Permite navegación entre pasos accesibles
+ * - Estados visuales: activo, completado, accesible, bloqueado
+ * - Responsive y adaptable
+ */
+
 'use client';
 
 interface WizardStep {
@@ -14,21 +26,29 @@ interface WizardProgressProps {
   formData?: any; // Para calcular el porcentaje real
 }
 
-export default function WizardProgress({ steps, currentStep, onStepClick, formData }: WizardProgressProps) {
+export default function WizardProgress({ 
+  steps, 
+  currentStep, 
+  onStepClick, 
+  formData 
+}: WizardProgressProps) {
   
-  // Calcular porcentaje basado en campos completados
-  const calculateProgress = () => {
+  /**
+   * Calcula el porcentaje de progreso basado en campos completados
+   * Si no hay formData, usa el progreso lineal por pasos
+   */
+  const calculateProgress = (): number => {
     if (!formData) return (currentStep / steps.length) * 100;
     
     // Campos obligatorios por paso
-    const requiredFields = {
+    const requiredFields: Record<number, string[]> = {
       1: ['nombre_propiedad', 'estados', 'propietario_id'], // Paso 1: 3 campos
       2: ['calle', 'colonia', 'codigo_postal', 'ciudad', 'estado', 'pais'], // Paso 2: 6 campos
       3: [], // Paso 3: condicional según estados
       4: ['espacios'] // Paso 4: 1 campo (debe tener al menos 1 espacio)
     };
     
-    // Agregar campos condicionales del paso 3
+    // Agregar campos condicionales del paso 3 según estados seleccionados
     if (formData.estados?.includes('Renta largo plazo')) {
       requiredFields[3].push('costo_renta_mensual');
     }
@@ -49,12 +69,12 @@ export default function WizardProgress({ steps, currentStep, onStepClick, formDa
     // Contar campos completados
     let completedFields = 0;
     
-    // Paso 1
+    // Paso 1: Datos Generales
     if (formData.nombre_propiedad?.trim()) completedFields++;
     if (formData.estados?.length > 0) completedFields++;
     if (formData.propietario_id) completedFields++;
     
-    // Paso 2
+    // Paso 2: Ubicación
     if (formData.calle?.trim()) completedFields++;
     if (formData.colonia?.trim()) completedFields++;
     if (formData.codigo_postal?.trim()) completedFields++;
@@ -62,7 +82,7 @@ export default function WizardProgress({ steps, currentStep, onStepClick, formDa
     if (formData.estado?.trim()) completedFields++;
     if (formData.pais?.trim()) completedFields++;
     
-    // Paso 3 (condicionales)
+    // Paso 3: Datos Específicos (condicionales)
     if (formData.estados?.includes('Renta largo plazo') && formData.costo_renta_mensual) {
       completedFields++;
     }
@@ -73,7 +93,7 @@ export default function WizardProgress({ steps, currentStep, onStepClick, formDa
       completedFields++;
     }
     
-    // Paso 4
+    // Paso 4: Espacios
     if (formData.espacios?.length > 0) completedFields++;
     
     return totalFields > 0 ? Math.round((completedFields / totalFields) * 100) : 0;
@@ -83,7 +103,7 @@ export default function WizardProgress({ steps, currentStep, onStepClick, formDa
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      {/* Progress bar */}
+      {/* Barra de progreso superior */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-gray-700">
@@ -101,8 +121,8 @@ export default function WizardProgress({ steps, currentStep, onStepClick, formDa
         </div>
       </div>
 
-      {/* Steps - Más compactos */}
-      <div className="grid grid-cols-4 gap-3">
+      {/* Grid de pasos - Responsive */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {steps.map((step) => {
           const isActive = step.id === currentStep;
           const isCompleted = step.id < currentStep;
@@ -139,9 +159,9 @@ export default function WizardProgress({ steps, currentStep, onStepClick, formDa
                   {isCompleted ? '✓' : step.icon}
                 </div>
 
-                {/* Título solamente */}
+                {/* Título del paso */}
                 <div className={`
-                  font-semibold text-sm font-poppins
+                  font-semibold text-sm font-poppins text-left
                   ${isActive ? 'text-gray-900' : isCompleted ? 'text-green-900' : 'text-gray-600'}
                 `}>
                   {step.name}

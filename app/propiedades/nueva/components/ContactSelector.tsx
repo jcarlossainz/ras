@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { logger } from '@/Lib/logger';
 
 interface ContactSelectorProps {
   value: string;
@@ -52,7 +53,7 @@ export default function ContactSelector({
       setContacts(MOCK_CONTACTS);
       
     } catch (error) {
-      console.error('Error cargando contactos:', error);
+      logger.error('Error cargando contactos:', error);
     } finally {
       setLoading(false);
     }

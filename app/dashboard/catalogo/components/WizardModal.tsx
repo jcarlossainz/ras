@@ -13,6 +13,8 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useConfirm } from '@/components/ui/confirm-modal';
+import { logger } from '@/Lib/logger';
 import WizardContainer from '../../../propiedades/nueva/components/WizardContainer';
 import { PropertyFormData } from '@/types/property';
 
@@ -32,6 +34,7 @@ export default function WizardModal({
   initialData
 }: WizardModalProps) {
   const [isAnimating, setIsAnimating] = useState(false);
+  const confirm = useConfirm();
 
   useEffect(() => {
     if (isOpen) {
@@ -48,9 +51,14 @@ export default function WizardModal({
     };
   }, [isOpen]);
 
-  const handleClose = () => {
+  const handleClose = async () => {
     // Confirmar si quiere cerrar
-    if (confirm('¿Cerrar el formulario? Los cambios se guardarán como borrador automáticamente.')) {
+    const confirmed = await confirm.warning(
+      '¿Cerrar el formulario?',
+      'Los cambios se guardarán como borrador automáticamente.'
+    );
+    
+    if (confirmed) {
       setIsAnimating(false);
       setTimeout(() => {
         onClose();
@@ -68,7 +76,7 @@ export default function WizardModal({
       }, 300);
     } catch (error) {
       // El error ya fue manejado en onSave
-      console.error('Error en handleSaveSuccess:', error);
+      logger.error('Error en handleSaveSuccess:', error);
     }
   };
 

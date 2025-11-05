@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/Lib/supabase/client'
+import { useToast } from '@/hooks/useToast'
+import { useConfirm } from '@/components/ui/confirm-modal'
+import { logger } from '@/Lib/logger'
 import WizardModal from './components/WizardModal'
 import CompartirPropiedad from '@/components/CompartirPropiedad'
 import TopBar from '@/components/ui/topbar'
@@ -23,6 +26,8 @@ interface Propiedad {
 
 export default function CatalogoPage() {
   const router = useRouter()
+  const toast = useToast()
+  const confirm = useConfirm()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
@@ -30,7 +35,6 @@ export default function CatalogoPage() {
   const [showCompartir, setShowCompartir] = useState(false)
   const [propiedadSeleccionada, setPropiedadSeleccionada] = useState<Propiedad | null>(null)
   
-  // Estados para búsqueda y filtro
   const [busqueda, setBusqueda] = useState('')
   const [filtroPropiedad, setFiltroPropiedad] = useState<'todos' | 'propios' | 'compartidos'>('todos')
   
@@ -82,9 +86,7 @@ export default function CatalogoPage() {
       ...(propiedadesCompartidasData || []).map(p => ({ ...p, es_propio: false }))
     ]
     
-    // Cargar colaboradores y foto de portada para cada propiedad
     for (const prop of todasPropiedades) {
-      // Cargar colaboradores
       const { data: colaboradores } = await supabase
         .from('propiedades_colaboradores')
         .select(`
@@ -98,11 +100,10 @@ export default function CatalogoPage() {
       
       prop.colaboradores = colaboradores?.map(c => ({
         user_id: c.user_id,
-        nombre: c.profiles?.nombre || 'Sin nombre',
-        email: c.profiles?.email || ''
+        nombre: (c as any).profiles?.nombre || 'Sin nombre',
+        email: (c as any).profiles?.email || 'Sin email'
       })) || []
-
-      // Cargar foto de portada (is_cover = true)
+      
       const { data: fotoPortada } = await supabase
         .from('property_images')
         .select('url_thumbnail')
@@ -113,7 +114,6 @@ export default function CatalogoPage() {
       prop.foto_portada = fotoPortada?.url_thumbnail || null
     }
     
-    todasPropiedades.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     setPropiedades(todasPropiedades)
   }
 
@@ -147,49 +147,43 @@ export default function CatalogoPage() {
   }
 
   const editarPropiedad = (propiedadId: string) => {
-    alert('Editar propiedad: ' + propiedadId)
+    toast.info('Función de edición en desarrollo')
+    logger.log('Editar propiedad:', propiedadId)
   }
 
   const eliminarPropiedad = async (propiedadId: string, nombrePropiedad: string) => {
     if (!user?.id) return
 
-    const confirmar = confirm(
-      `¿Estás seguro que deseas eliminar la propiedad "${nombrePropiedad}"?\n\n` +
-      'Esta acción NO se puede deshacer y se eliminarán:\n' +
-      '• Todos los datos de la propiedad\n' +
-      '• Colaboradores asociados\n' +
-      '• Fotos y documentos\n' +
-      '• Tickets y servicios\n' +
-      '• Todo el historial'
+    const confirmed = await confirm.danger(
+      `¿Eliminar "${nombrePropiedad}"?`,
+      'Esta acción NO se puede deshacer. Se eliminarán todos los datos, colaboradores, fotos, tickets y todo el historial.'
     )
 
-    if (!confirmar) return
+    if (!confirmed) return
 
     try {
-      // Eliminar la propiedad (las eliminaciones en cascada están configuradas en la BD)
       const { error } = await supabase
         .from('propiedades')
         .delete()
         .eq('id', propiedadId)
-        .eq('user_id', user.id) // Solo puede eliminar el propietario
+        .eq('user_id', user.id)
 
       if (error) throw error
 
-      // Recargar propiedades
       await cargarPropiedades(user.id)
-      
-      alert(`✅ Propiedad "${nombrePropiedad}" eliminada correctamente`)
+      toast.success(`Propiedad "${nombrePropiedad}" eliminada correctamente`)
     } catch (error: any) {
-      console.error('Error al eliminar propiedad:', error)
-      alert('❌ Error al eliminar la propiedad: ' + error.message)
+      logger.error('Error al eliminar propiedad:', error)
+      toast.error('Error al eliminar la propiedad')
     }
   }
 
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      await supabase.auth.signOut()
-      router.push('/login')
-    }
+    const confirmed = await confirm.warning('¿Cerrar sesión?')
+    if (!confirmed) return
+    
+    await supabase.auth.signOut()
+    router.push('/login')
   }
 
   const handleWizardSave = async (data: PropertyFormData) => {
@@ -246,19 +240,19 @@ export default function CatalogoPage() {
       cargarPropiedades(user.id);
       
     } catch (error) {
-      console.error('Error al guardar propiedad:', error);
+      logger.error('Error al guardar propiedad:', error);
       throw error;
     }
   };
 
   const handleWizardSaveDraft = async (data: PropertyFormData) => {
     if (!user?.id) {
-      console.warn('Usuario no autenticado');
+      logger.warn('Usuario no autenticado');
       return;
     }
 
     if (isSavingRef.current) {
-      console.log('⏳ Ya hay un guardado en proceso, saltando...');
+      logger.log('Ya hay un guardado en proceso');
       return;
     }
 
@@ -296,7 +290,7 @@ export default function CatalogoPage() {
           .eq('id', draftIdRef.current);
 
         if (error) throw error;
-        console.log(`✅ Borrador actualizado (ID: ${draftIdRef.current})`);
+        logger.log(`Borrador actualizado: ${draftIdRef.current}`);
       } else {
         const { data: nuevoBorrador, error } = await supabase
           .from('propiedades')
@@ -310,11 +304,11 @@ export default function CatalogoPage() {
         if (error) throw error;
         
         draftIdRef.current = nuevoBorrador.id;
-        console.log(`✅ Nuevo borrador creado (ID: ${nuevoBorrador.id})`);
+        logger.log(`Borrador creado: ${nuevoBorrador.id}`);
       }
 
     } catch (error) {
-      console.error('Error al guardar borrador:', error);
+      logger.error('Error al guardar borrador:', error);
     } finally {
       setTimeout(() => {
         isSavingRef.current = false;
@@ -327,6 +321,18 @@ export default function CatalogoPage() {
     isSavingRef.current = false;
     setShowWizard(false);
   };
+
+  const propiedadesFiltradas = propiedades.filter(prop => {
+    const cumpleBusqueda = prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+                          (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
+    
+    const cumpleFiltro = 
+      filtroPropiedad === 'todos' ||
+      (filtroPropiedad === 'propios' && prop.es_propio) ||
+      (filtroPropiedad === 'compartidos' && !prop.es_propio)
+    
+    return cumpleBusqueda && cumpleFiltro
+  })
 
   if (loading) {
     return <Loading message="Cargando propiedades..." />
@@ -344,10 +350,8 @@ export default function CatalogoPage() {
       />
 
       <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Barra con búsqueda, filtro y títulos (sin sticky) */}
         <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-300 p-4 mb-6">
           <div className="flex items-center gap-4">
-            {/* Buscador tamaño completo */}
             <div className="flex-1">
               <div className="relative">
                 <input
@@ -364,7 +368,6 @@ export default function CatalogoPage() {
               </div>
             </div>
 
-            {/* Dropdown de filtro */}
             <div className="relative">
               <select
                 value={filtroPropiedad}
@@ -378,24 +381,11 @@ export default function CatalogoPage() {
               <svg className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
-            </div>           
+            </div>
           </div>
         </div>
 
-        {propiedades.filter(prop => {
-          // Filtrar por búsqueda
-          const matchBusqueda = busqueda === '' || 
-            prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-            (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
-          
-          // Filtrar por tipo
-          const matchTipo = 
-            filtroPropiedad === 'todos' ||
-            (filtroPropiedad === 'propios' && prop.es_propio) ||
-            (filtroPropiedad === 'compartidos' && !prop.es_propio)
-          
-          return matchBusqueda && matchTipo
-        }).length > 0 ? (
+        {propiedadesFiltradas.length > 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
             {/* Encabezados de la tabla */}
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-6 py-3">
@@ -414,20 +404,7 @@ export default function CatalogoPage() {
 
             {/* Filas de propiedades */}
             <div className="divide-y divide-gray-100">
-              {propiedades.filter(prop => {
-                // Filtrar por búsqueda
-                const matchBusqueda = busqueda === '' || 
-                  prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-                  (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
-                
-                // Filtrar por tipo
-                const matchTipo = 
-                  filtroPropiedad === 'todos' ||
-                  (filtroPropiedad === 'propios' && prop.es_propio) ||
-                  (filtroPropiedad === 'compartidos' && !prop.es_propio)
-                
-                return matchBusqueda && matchTipo
-              }).map((prop) => (
+              {propiedadesFiltradas.map((prop) => (
                 <div 
                   key={prop.id}
                   className="px-6 py-4 hover:bg-gray-50 transition-all"
@@ -552,7 +529,6 @@ export default function CatalogoPage() {
         )}
       </main>
 
-      {/* Componente Compartir Propiedad */}
       {showCompartir && propiedadSeleccionada && (
         <CompartirPropiedad
           isOpen={showCompartir}
@@ -568,13 +544,14 @@ export default function CatalogoPage() {
         />
       )}
 
-      {/* Wizard Modal */}
-      <WizardModal
-        isOpen={showWizard}
-        onClose={handleCloseWizard}
-        onSave={handleWizardSave}
-        onSaveDraft={handleWizardSaveDraft}
-      />
+      {showWizard && (
+        <WizardModal
+          isOpen={showWizard}
+          onClose={handleCloseWizard}
+          onSave={handleWizardSave}
+          onSaveDraft={handleWizardSaveDraft}
+        />
+      )}
     </div>
   )
 }

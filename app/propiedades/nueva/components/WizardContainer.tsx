@@ -1,3 +1,22 @@
+/**
+ * WizardContainer.tsx
+ * Plan C - Contenedor principal del wizard de registro de propiedades
+ * 
+ * Funcionalidades:
+ * - Maneja estado global del formulario multi-paso
+ * - Validaciones por paso antes de avanzar
+ * - Auto-guardado de borradores al cambiar de paso
+ * - Navegación entre pasos con validación
+ * - Renderiza componentes de paso dinámicamente
+ * - Gestión de loading states
+ * 
+ * Flujo de pasos (4 pasos):
+ * 1. Datos Generales - Información básica y asignaciones
+ * 2. Ubicación - Dirección y complejo
+ * 3. Espacios - Habitaciones, baños y áreas
+ * 4. Datos Específicos - Precios según estados
+ */
+
 'use client';
 
 import { useState, useCallback } from 'react';
@@ -9,14 +28,14 @@ import Step2_Ubicacion from '../steps/Step2_Ubicacion';
 import Step3_Espacios from '../steps/Step3_Espacios';
 import Step4_Condicionales from '../steps/Step4_Condicionales';
 
-// Definición de los pasos del wizard (4 pasos reordenados)
+// Definición de los pasos del wizard (4 pasos)
 const WIZARD_STEPS = [
   { 
     id: 1, 
     name: 'Datos Generales', 
     component: Step1_DatosGenerales,
     icon: '📋',
-    description: 'Información básica'
+    description: 'Información básica y asignaciones'
   },
   { 
     id: 2, 
@@ -67,7 +86,7 @@ export default function WizardContainer({
     tamano_construccion: '',
     tamano_construccion_unit: 'm²',
     
-    // Asignaciones (ahora en el mismo paso)
+    // Asignaciones
     propietario_id: '',
     supervisor_id: '',
     
@@ -106,7 +125,11 @@ export default function WizardContainer({
     ...initialData,
   });
 
-  // Validaciones por paso
+  /**
+   * Valida los campos requeridos del paso actual
+   * @param step Número del paso a validar
+   * @returns Objeto con resultado de validación y errores
+   */
   const validateStep = useCallback((step: number): { isValid: boolean; errors: string[] } => {
     const errors: string[] = [];
 
@@ -118,12 +141,15 @@ export default function WizardContainer({
         break;
         
       case 2: // Ubicación - TODO opcional por ahora
+        // Agregar validaciones cuando sea necesario
         break;
         
       case 3: // Espacios - TODO opcional por ahora
+        // Agregar validaciones cuando sea necesario
         break;
         
       case 4: // Datos Específicos - TODO opcional por ahora
+        // Agregar validaciones cuando sea necesario
         break;
     }
 
@@ -133,12 +159,18 @@ export default function WizardContainer({
     };
   }, [formData]);
 
-  // Actualizar datos desde cualquier paso
+  /**
+   * Actualiza los datos del formulario desde cualquier paso
+   * @param stepData Datos parciales a actualizar
+   */
   const updateFormData = useCallback((stepData: Partial<PropertyFormData>) => {
     setFormData(prev => ({ ...prev, ...stepData }));
   }, []);
 
-  // Navegar a un paso específico
+  /**
+   * Navega a un paso específico con validación
+   * @param targetStep Número del paso destino
+   */
   const goToStep = useCallback((targetStep: number) => {
     // Validar paso actual antes de avanzar
     if (targetStep > currentStep) {
@@ -158,22 +190,28 @@ export default function WizardContainer({
         onSaveDraft(formData).catch(console.error);
       }
       
-      // Scroll al inicio
+      // Scroll al inicio suave
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [currentStep, formData, validateStep, onSaveDraft]);
 
-  // Siguiente paso
+  /**
+   * Avanza al siguiente paso
+   */
   const handleNext = useCallback(() => {
     goToStep(currentStep + 1);
   }, [currentStep, goToStep]);
 
-  // Paso anterior
+  /**
+   * Retrocede al paso anterior
+   */
   const handlePrevious = useCallback(() => {
     goToStep(currentStep - 1);
   }, [currentStep, goToStep]);
 
-  // Guardar como borrador
+  /**
+   * Guarda el formulario como borrador
+   */
   const handleSaveDraft = useCallback(async () => {
     if (!onSaveDraft) return;
     
@@ -189,9 +227,11 @@ export default function WizardContainer({
     }
   }, [formData, onSaveDraft]);
 
-  // Guardar y publicar (paso final)
+  /**
+   * Guarda y publica la propiedad (validación completa)
+   */
   const handleFinalSave = useCallback(async () => {
-    // Validar todos los pasos
+    // Validar todos los pasos antes de guardar
     for (let step = 1; step <= WIZARD_STEPS.length; step++) {
       const validation = validateStep(step);
       if (!validation.isValid) {
@@ -205,7 +245,7 @@ export default function WizardContainer({
     try {
       await onSave({ ...formData, is_draft: false });
       alert('✅ Propiedad guardada y publicada correctamente');
-      // Redirigir o limpiar formulario
+      // Aquí podrías redirigir o limpiar el formulario
     } catch (error) {
       console.error('Error al guardar propiedad:', error);
       alert('❌ Error al guardar la propiedad');
@@ -237,7 +277,7 @@ export default function WizardContainer({
           />
         </div>
 
-        {/* Navegación */}
+        {/* Navegación inferior */}
         <WizardNavigation
           currentStep={currentStep}
           totalSteps={WIZARD_STEPS.length}
@@ -248,7 +288,7 @@ export default function WizardContainer({
           onFinalSave={handleFinalSave}
         />
 
-        {/* Info de auto-guardado */}
+        {/* Indicador de auto-guardado */}
         {onSaveDraft && (
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500 font-roboto">

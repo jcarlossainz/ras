@@ -1,13 +1,31 @@
+/**
+ * SpaceCard.tsx
+ * Plan C - Tarjeta individual de espacio con configuración completa
+ * 
+ * Funcionalidades principales:
+ * - Tarjeta editable para cada espacio de la propiedad
+ * - Configuración específica según tipo de espacio
+ * - Sistema de equipamiento con opciones predefinidas y personalizadas
+ * - Gestión de camas para habitaciones (tipos, cantidad, capacidad)
+ * - Vinculación de baños privados a habitaciones
+ * - Configuración especial para albercas (tamaño, tratamiento)
+ * - Duplicación y eliminación de espacios
+ * - Notas adicionales por espacio
+ * 
+ * Características especiales por tipo:
+ * - Habitaciones: Camas, ocupantes, baño privado opcional
+ * - Albercas: Tamaño en m³, tipo de tratamiento (Cloro/Sal)
+ * - Todos: Equipamiento específico según tipo de espacio
+ */
+
 'use client';
 
 import React from 'react';
 import { Space, SpaceType } from '@/types/property';
-import Button from '@/components/ui/button';
-import Input from '@/components/ui/input';
 
 interface SpaceCardProps {
   space: Space;
-  allSpaces: Space[]; // Lista completa de espacios para selección de baños
+  allSpaces: Space[];
   onUpdate: (id: string, updates: Partial<Space>) => void;
   onDelete: (id: string) => void;
   onDuplicate: (space: Space) => void;
@@ -28,7 +46,6 @@ const SpaceCard: React.FC<SpaceCardProps> = ({
     <div className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
-        {/* Left - Nombre con chip de tipo */}
         <div className="flex-1 min-w-0">
           <label className="block text-xs font-semibold text-gray-500 mb-1">
             Nombre o ID
@@ -41,16 +58,13 @@ const SpaceCard: React.FC<SpaceCardProps> = ({
               placeholder="Puedes renombrarlo"
               className="flex-1 px-3 py-2 border-2 border-ras-azul/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul/30 font-medium"
             />
-            {/* Type Badge - ahora al lado del input */}
             <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-ras-azul/10 to-ras-turquesa/10 border border-ras-azul/30 rounded-lg text-xs font-bold text-ras-azul whitespace-nowrap">
               {space.type}
             </span>
           </div>
         </div>
 
-        {/* Right - Action Buttons */}
         <div className="flex gap-2 pt-6">
-          {/* Duplicar */}
           <button
             onClick={() => onDuplicate(space)}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-sky-50 border border-sky-300 text-sky-700 rounded-lg text-xs font-semibold hover:bg-sky-100 transition-colors"
@@ -63,7 +77,6 @@ const SpaceCard: React.FC<SpaceCardProps> = ({
             Duplicar
           </button>
 
-          {/* Eliminar */}
           <button
             onClick={() => onDelete(space.id)}
             className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-red-50 border border-red-300 text-red-700 rounded-lg text-xs font-semibold hover:bg-red-100 transition-colors"
@@ -77,7 +90,6 @@ const SpaceCard: React.FC<SpaceCardProps> = ({
         </div>
       </div>
 
-      {/* Body - Contenido específico del espacio */}
       <div className="space-y-3">
         <SpaceDetails space={space} allSpaces={allSpaces} onUpdate={onUpdate} />
       </div>
@@ -85,7 +97,9 @@ const SpaceCard: React.FC<SpaceCardProps> = ({
   );
 };
 
-// Componente para detalles específicos según el tipo
+/**
+ * Componente de detalles específicos según el tipo de espacio
+ */
 const SpaceDetails: React.FC<{
   space: Space;
   allSpaces: Space[];
@@ -94,7 +108,9 @@ const SpaceDetails: React.FC<{
   const [nuevoEquipamiento, setNuevoEquipamiento] = React.useState('');
   const [mostrarInputOtro, setMostrarInputOtro] = React.useState('');
 
-  // Equipamiento específico por tipo de espacio
+  /**
+   * Retorna opciones de equipamiento según tipo de espacio
+   */
   const getEquipamientoOptions = (spaceType: string) => {
     const common = ['Accesible con silla de ruedas'];
     
@@ -144,14 +160,7 @@ const SpaceDetails: React.FC<{
     }
   };
 
-  const tiposCama = [
-    'Individual',
-    'Matrimonial',
-    'Queen',
-    'King',
-    'Sofá cama'
-  ];
-
+  const tiposCama = ['Individual', 'Matrimonial', 'Queen', 'King', 'Sofá cama'];
   const equipamientoOptions = getEquipamientoOptions(space.type);
 
   const updateDetail = (key: string, value: any) => {
@@ -185,12 +194,10 @@ const SpaceDetails: React.FC<{
     updateDetail('equipamiento', current.filter((i: string) => i !== item));
   };
 
-  // Equipamiento personalizado (que no está en la lista predefinida)
   const equipamientoPersonalizado = (space.details.equipamiento || []).filter(
     (item: string) => !equipamientoOptions.includes(item)
   );
 
-  // Gestión de camas
   const agregarCama = (tipo: string) => {
     const camas = space.details.camas || [];
     updateDetail('camas', [...camas, { tipo, id: Date.now() }]);
@@ -201,27 +208,7 @@ const SpaceDetails: React.FC<{
     updateDetail('camas', camas.filter((c: any) => c.id !== camaId));
   };
 
-  const calcularCapacidadCamas = () => {
-    const camas = space.details.camas || [];
-    let min = 0, max = 0;
-    
-    camas.forEach((cama: any) => {
-      switch(cama.tipo) {
-        case 'Individual': min += 1; max += 1; break;
-        case 'Matrimonial': min += 2; max += 2; break;
-        case 'Queen': min += 2; max += 2; break;
-        case 'King': min += 2; max += 3; break;
-        case 'Sofá cama': min += 1; max += 2; break;
-      }
-    });
-    
-    return { min, max };
-  };
-
-  // Renderizado especial para HABITACIONES
   const isHabitacion = space.type === 'Habitación' || space.type === 'Lock-off' || space.type === 'Cuarto de servicio';
-  
-  // Renderizado especial para ALBERCA
   const isAlberca = space.type === 'Alberca';
   
   return (
@@ -233,7 +220,7 @@ const SpaceDetails: React.FC<{
             Configuración de Habitación
           </h4>
 
-          {/* Lista de camas agregadas */}
+          {/* Lista de camas */}
           {(space.details.camas || []).length > 0 && (
             <div className="space-y-2 mb-3">
               {(space.details.camas || []).map((cama: any) => (
@@ -254,7 +241,7 @@ const SpaceDetails: React.FC<{
             </div>
           )}
 
-          {/* Agregar cama y Ocupantes + Baño privado */}
+          {/* Agregar cama */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Agregar cama
@@ -275,9 +262,8 @@ const SpaceDetails: React.FC<{
             </select>
           </div>
 
-          {/* Ocupantes y Baño privado en la misma fila */}
+          {/* Ocupantes y Baño privado */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Ocupantes */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Cantidad de ocupantes
@@ -292,7 +278,6 @@ const SpaceDetails: React.FC<{
               />
             </div>
 
-            {/* Baño Privado - Checkbox */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Baño privado
@@ -314,11 +299,10 @@ const SpaceDetails: React.FC<{
             </div>
           </div>
 
-          {/* Selector de baño (solo si baño privado está marcado) */}
+          {/* Selector de baño privado */}
           {space.details.banoPrivado && (
             <div className="space-y-3">
               {(() => {
-                // Filtrar solo baños de la propiedad
                 const banosDisponibles = allSpaces.filter(s => 
                   s.type === 'Baño completo' || s.type === 'Medio baño'
                 );
@@ -338,7 +322,6 @@ const SpaceDetails: React.FC<{
 
                 return (
                   <div className="space-y-3">
-                    {/* Selector de baño */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
                         ¿Cuál baño es privado de esta habitación?
@@ -357,7 +340,6 @@ const SpaceDetails: React.FC<{
                       </select>
                     </div>
 
-                    {/* Mostrar características del baño seleccionado */}
                     {space.details.banoPrivadoId && (() => {
                       const banoSeleccionado = banosDisponibles.find(
                         b => b.id === space.details.banoPrivadoId
@@ -406,9 +388,7 @@ const SpaceDetails: React.FC<{
       {/* SECCIÓN ESPECIAL PARA ALBERCA */}
       {isAlberca && (
         <div className="space-y-3">
-          {/* Tamaño y Tipo de tratamiento en la misma fila */}
           <div className="grid grid-cols-2 gap-3">
-            {/* Tamaño en m³ */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Tamaño (m³)
@@ -424,7 +404,6 @@ const SpaceDetails: React.FC<{
               />
             </div>
 
-            {/* Tipo de tratamiento */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Tipo de tratamiento
@@ -470,7 +449,6 @@ const SpaceDetails: React.FC<{
             </label>
           ))}
 
-          {/* Botón "Otro" */}
           <button
             type="button"
             onClick={() => setMostrarInputOtro(mostrarInputOtro ? '' : 'show')}
@@ -480,7 +458,6 @@ const SpaceDetails: React.FC<{
           </button>
         </div>
 
-        {/* Input para agregar personalizado */}
         {mostrarInputOtro && (
           <div className="mt-3 flex gap-2">
             <input
@@ -517,7 +494,6 @@ const SpaceDetails: React.FC<{
           </div>
         )}
 
-        {/* Equipamiento personalizado - integrado en la grilla */}
         {equipamientoPersonalizado.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3">
             {equipamientoPersonalizado.map((item: string) => (

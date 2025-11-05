@@ -1,3 +1,22 @@
+/**
+ * SpaceCategories.tsx
+ * Plan C - Selector de tipos de espacios organizados por categorías
+ * 
+ * Funcionalidades:
+ * - Organización en 5 categorías principales de espacios
+ * - Grid responsive que se adapta a diferentes pantallas
+ * - Opción "Otro" para tipos de espacios personalizados
+ * - Validación y limpieza de inputs personalizados
+ * - Iconos SVG inline para cada categoría
+ * 
+ * Categorías disponibles:
+ * 1. Habitaciones - Habitación, Lock-off, Cuarto de servicio
+ * 2. Baños - Baño completo, Medio baño
+ * 3. Áreas Comunes - Cocina, Sala, Comedor, Cuarto de lavado
+ * 4. Exteriores - Terraza, Rooftop, Patio, Jardín, Alberca
+ * 5. Adicionales - Bodega, Estacionamiento, Gimnasio, Bar, Cine, Oficina, Otro
+ */
+
 'use client';
 
 import React, { useState } from 'react';
@@ -7,7 +26,9 @@ interface SpaceCategoriesProps {
   onSelectType: (type: SpaceType) => void;
 }
 
-// Categorías organizadas con íconos SVG lineales
+/**
+ * Definición de categorías con sus espacios y iconos SVG
+ */
 const CATEGORIES = [
   {
     id: 'habitaciones',
@@ -62,9 +83,15 @@ const CATEGORIES = [
 ];
 
 const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
+  // Estado para mostrar/ocultar input personalizado
   const [mostrarInputOtro, setMostrarInputOtro] = useState(false);
   const [nombreOtro, setNombreOtro] = useState('');
 
+  /**
+   * Maneja la selección de un tipo de espacio
+   * Si es "Otro", muestra el input personalizado
+   * @param spaceType - El tipo de espacio seleccionado
+   */
   const handleSelectType = (spaceType: SpaceType) => {
     if (spaceType === 'Otro') {
       setMostrarInputOtro(true);
@@ -73,6 +100,10 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
     }
   };
 
+  /**
+   * Agrega un tipo de espacio personalizado
+   * Valida que no esté vacío antes de agregarlo
+   */
   const handleAgregarOtro = () => {
     if (nombreOtro.trim()) {
       onSelectType(nombreOtro.trim() as SpaceType);
@@ -88,7 +119,7 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
           key={category.id}
           className="border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition-all"
         >
-          {/* Header de la columna */}
+          {/* Header de la categoría */}
           <div className="p-4 bg-gradient-to-br from-ras-azul/5 to-ras-turquesa/5 border-b border-gray-200 rounded-t-xl">
             <div className="flex items-center gap-3">
               <div className="text-ras-azul">
@@ -100,7 +131,7 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
             </div>
           </div>
 
-          {/* Botones de espacios - siempre visibles */}
+          {/* Lista de tipos de espacios de la categoría */}
           <div className="p-3 space-y-2">
             {category.spaces.map((spaceType) => (
               <button
@@ -118,13 +149,14 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
             ))}
           </div>
 
-          {/* Input para "Otro" - solo en la categoría Adicionales */}
+          {/* Input para tipo personalizado - Solo en categoría Adicionales */}
           {category.id === 'adicionales' && mostrarInputOtro && (
             <div className="px-3 pb-3 pt-2 border-t border-gray-100">
               <label className="block text-xs font-semibold text-gray-700 mb-2">
                 Especifica el tipo
               </label>
               <div className="space-y-2">
+                {/* Input de texto */}
                 <input
                   type="text"
                   value={nombreOtro}
@@ -139,6 +171,8 @@ const SpaceCategories: React.FC<SpaceCategoriesProps> = ({ onSelectType }) => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
                   autoFocus
                 />
+                
+                {/* Botones de acción */}
                 <div className="flex gap-2">
                   <button
                     type="button"

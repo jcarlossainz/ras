@@ -318,7 +318,7 @@ export default function MarketPage() {
                     <div className="absolute top-3 right-3">
                       <span className={`px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm ${
                         isActivo 
-                          ? 'bg-green-500/90 text-white' 
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-300' 
                           : 'bg-gray-200/90 text-gray-700'
                       }`}>
                         {isActivo ? 'Activo' : 'Inactivo'}
@@ -359,24 +359,25 @@ export default function MarketPage() {
                       </div>
                     </div>
 
-                    {/* Botones usando componente Button */}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => abrirAnuncio(prop.id)}
-                        variant="primary"
-                        size="sm"
-                        className="flex-1"
-                      >
-                        Editar
-                      </Button>
-                      <Button
+                    {/* Switch toggle para activar/desactivar */}
+                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                      <span className="text-sm font-medium text-gray-700">
+                        {isActivo ? 'Anuncio activo' : 'Anuncio pausado'}
+                      </span>
+                      <button
                         onClick={() => toggleEstadoAnuncio(prop.id, prop.estado_anuncio)}
-                        variant={isActivo ? 'danger' : 'success'}
-                        size="sm"
-                        className="flex-1"
+                        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+                          isActivo 
+                            ? 'bg-blue-500 focus:ring-blue-500' 
+                            : 'bg-gray-300 focus:ring-gray-400'
+                        }`}
                       >
-                        {isActivo ? 'Pausar' : 'Activar'}
-                      </Button>
+                        <span
+                          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform ${
+                            isActivo ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
                     </div>
                   </div>
                 </div>
