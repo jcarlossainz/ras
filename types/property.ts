@@ -1,10 +1,17 @@
 // types/property.ts
 // Tipos y interfaces para el sistema de propiedades RAS V_1.0
 
+// ===== ESPACIOS =====
+
 export interface Space {
   id: string;
   name: string;
   type: SpaceType;
+  description?: string;
+  icon?: string;
+  category?: string;
+  quantity?: number;
+  features?: string[];
   details: {
     equipamiento: string[];
     camas?: Array<{ tipo: string; id: number }>;
@@ -12,6 +19,7 @@ export interface Space {
     banoPrivadoId?: string | null;
     notas?: string;
   };
+  created_at?: string;
 }
 
 export type SpaceType =
@@ -44,42 +52,7 @@ export const SPACE_CATEGORIES = {
   adicionales: ['Bodega', 'Estacionamiento', 'Gimnasio', 'Bar', 'Cine / Tv Room', 'Oficina']
 };
 
-export interface PropertyFormData {
-  // Datos básicos
-  nombre_propiedad: string;
-  tipo_propiedad: string;
-  estados: string[];
-  mobiliario: string;
-  capacidad_personas: string;
-  tamano_terreno: string;
-  tamano_terreno_unit: string;
-  tamano_construccion: string;
-  tamano_construccion_unit: string;
-
-  // Asignaciones
-  propietario_id: string;
-  supervisor_id?: string;
-
-  // Condicionales - Renta largo plazo
-  inquilino_id?: string;
-  fecha_inicio_contrato?: string;
-  costo_renta_mensual?: string;
-
-  // Condicionales - Renta vacacional
-  precio_noche?: string;
-  amenidades_vacacional?: string[];
-
-  // Condicionales - Venta
-  precio_venta?: string;
-
-  // Espacios
-  espacios: Space[];
-
-  // Metadata
-  is_draft: boolean;
-}
-
-// 📁 src/types/property.ts (actualizado con campos de galería dual)
+// ===== GALERÍA DE IMÁGENES =====
 
 export interface PropertyImage {
   id?: string;
@@ -99,78 +72,6 @@ export interface PropertyImage {
     display: { width: number; height: number };
   };
 }
-
-export interface Space {
-  id: string;
-  name: string;
-  description?: string;
-  icon?: string;
-  category?: string;
-  quantity?: number;
-  features?: string[];
-  created_at?: string;
-}
-
-export interface PropertyFormData {
-  // Identificación
-  id?: string;
-  nombre_propiedad: string;
-  tipo_propiedad: string;
-  estado_propiedad: string;
-  
-  // Ubicación
-  pais?: string;
-  estado?: string;
-  ciudad?: string;
-  colonia?: string;
-  calle?: string;
-  numero_exterior?: string;
-  numero_interior?: string;
-  codigo_postal?: string;
-  
-  // Descripción
-  descripcion_corta?: string;
-  descripcion_larga?: string;
-  
-  // Precio
-  precio_venta?: number;
-  precio_renta?: number;
-  moneda?: string;
-  
-  // Características
-  superficie_terreno?: number;
-  superficie_construccion?: number;
-  recamaras?: number;
-  banos?: number;
-  medios_banos?: number;
-  estacionamientos?: number;
-  niveles?: number;
-  antiguedad?: number;
-  
-  // Galería (ACTUALIZADO)
-  photos: PropertyImage[];
-  
-  // Espacios
-  espacios: Space[];
-  
-  // Amenidades
-  amenidades?: string[];
-  
-  // Condicionales
-  permite_mascotas?: boolean;
-  amueblado?: boolean;
-  
-  // Contacto
-  contacto_id?: string;
-  
-  // Metadata
-  created_at?: string;
-  updated_at?: string;
-  published_at?: string;
-  status?: 'draft' | 'published' | 'archived';
-}
-
-// Tipos auxiliares para la galería
 
 export interface GalleryStats {
   total: number;
@@ -201,7 +102,138 @@ export interface ImageCompressionResult {
   };
 }
 
-// Enums útiles
+// ===== SERVICIOS DEL INMUEBLE =====
+
+export interface ServicioInmueble {
+  id: string;
+  tipo_servicio: string;
+  nombre: string;
+  numero_contrato: string;
+  monto: number;
+  es_fijo: boolean;
+  ultima_fecha_pago: string;
+  frecuencia_valor: number;
+  frecuencia_unidad: 'dias' | 'semanas' | 'meses' | 'anos';
+  responsable?: string;
+  proveedor?: string;
+  activo: boolean;
+}
+
+export interface FechaPagoServicio {
+  id: string;
+  servicio_id: string;
+  propiedad_id: string;
+  fecha_pago: string; // YYYY-MM-DD
+  monto_estimado: number;
+  pagado: boolean;
+  fecha_pago_real?: string; // Cuando se marca como pagado
+  notas?: string;
+  created_at: string;
+}
+
+// ===== INTERFACE PRINCIPAL: PropertyFormData =====
+
+export interface PropertyFormData {
+  // ===== IDENTIFICACIÓN =====
+  id?: string;
+  nombre_propiedad: string;
+  tipo_propiedad: string;
+  estados: string[]; // Array de estados: ['Renta largo plazo', 'Venta', etc.]
+  
+  // ===== DATOS BÁSICOS =====
+  mobiliario: string;
+  capacidad_personas: string;
+  tamano_terreno: string;
+  tamano_terreno_unit: string;
+  tamano_construccion: string;
+  tamano_construccion_unit: string;
+  
+  // ===== UBICACIÓN =====
+  pais?: string;
+  estado?: string;
+  ciudad?: string;
+  colonia?: string;
+  calle?: string;
+  numero_exterior?: string;
+  numero_interior?: string;
+  codigo_postal?: string;
+  
+  // ===== DESCRIPCIÓN =====
+  descripcion_corta?: string;
+  descripcion_larga?: string;
+  
+  // ===== CARACTERÍSTICAS FÍSICAS =====
+  superficie_terreno?: number;
+  superficie_construccion?: number;
+  recamaras?: number;
+  banos?: number;
+  medios_banos?: number;
+  estacionamientos?: number;
+  niveles?: number;
+  antiguedad?: number;
+  
+  // ===== ASIGNACIONES =====
+  propietario_id: string;
+  supervisor_id?: string;
+  
+  // ===== CONDICIONALES - RENTA LARGO PLAZO =====
+  inquilino_id?: string;
+  
+  // Detalles del contrato (cuando está rentado)
+  fecha_inicio_contrato?: string;
+  duracion_contrato_valor?: string; // Ej: "12"
+  duracion_contrato_unidad?: string; // "meses" | "años"
+  
+  // Información de pagos (cuando está rentado)
+  costo_renta_mensual?: string;
+  frecuencia_pago?: string; // "mensual" | "quincenal" | "semanal"
+  dia_pago?: string; // Día del mes (1-31)
+  
+  // Información cuando NO está rentado (disponible)
+  precio_renta_disponible?: string;
+  requisitos_renta?: string[]; // Requisitos predefinidos seleccionados
+  requisitos_renta_custom?: string[]; // Requisitos personalizados agregados
+  
+  // ===== CONDICIONALES - RENTA VACACIONAL =====
+  precio_noche?: string;
+  amenidades_vacacional?: string[];
+  
+  // ===== CONDICIONALES - VENTA =====
+  precio_venta?: string;
+  precio_venta_number?: number;
+  moneda?: string;
+  
+  // ===== PRECIO ADICIONAL =====
+  precio_renta?: number;
+  
+  // ===== ESPACIOS =====
+  espacios: Space[];
+  
+  // ===== SERVICIOS =====
+  servicios?: ServicioInmueble[];
+  
+  // ===== GALERÍA =====
+  photos: PropertyImage[];
+  
+  // ===== AMENIDADES =====
+  amenidades?: string[];
+  
+  // ===== OTRAS CARACTERÍSTICAS =====
+  permite_mascotas?: boolean;
+  amueblado?: boolean;
+  
+  // ===== CONTACTO =====
+  contacto_id?: string;
+  
+  // ===== METADATA =====
+  created_at?: string;
+  updated_at?: string;
+  published_at?: string;
+  status?: 'draft' | 'published' | 'archived';
+  is_draft: boolean;
+}
+
+// ===== ENUMS Y TIPOS AUXILIARES =====
 
 export enum PropertyType {
   CASA = 'Casa',
@@ -210,7 +242,12 @@ export enum PropertyType {
   OFICINA = 'Oficina',
   LOCAL_COMERCIAL = 'Local Comercial',
   BODEGA = 'Bodega',
-  RANCHO = 'Rancho'
+  RANCHO = 'Rancho',
+  VILLA = 'Villa',
+  CONDOMINIO = 'Condominio',
+  PENTHOUSE = 'Penthouse',
+  LOFT = 'Loft',
+  ESTUDIO = 'Estudio'
 }
 
 export enum PropertyStatus {
@@ -225,7 +262,24 @@ export enum TransactionType {
   AMBOS = 'ambos'
 }
 
-// Constantes para la galería
+export type EstadoPropiedad = 
+  | 'Renta largo plazo'
+  | 'Renta vacacional'
+  | 'Venta'
+  | 'Mantenimiento'
+  | 'Suspendido'
+  | 'Propietario';
+
+export type FrecuenciaPago = 
+  | 'mensual'
+  | 'quincenal'
+  | 'semanal';
+
+export type DuracionUnidad = 
+  | 'meses'
+  | 'años';
+
+// ===== CONSTANTES =====
 
 export const GALLERY_CONSTANTS = {
   THUMBNAIL_SIZE: 300,
@@ -237,13 +291,53 @@ export const GALLERY_CONSTANTS = {
   OPTIMAL_PHOTOS: 15
 } as const;
 
-// Helper types para formularios
+export const TIPOS_PROPIEDAD = [
+  'Departamento',
+  'Casa',
+  'Villa',
+  'Condominio',
+  'Penthouse',
+  'Loft',
+  'Estudio',
+  'Oficina',
+  'Local comercial',
+  'Bodega'
+];
+
+export const ESTADOS_PROPIEDAD = [
+  'Renta largo plazo',
+  'Renta vacacional',
+  'Venta',
+  'Mantenimiento',
+  'Suspendido',
+  'Propietario'
+];
+
+export const OPCIONES_MOBILIARIO = [
+  'Amueblada',
+  'Semi-amueblada',
+  'Sin amueblar'
+];
+
+export const FRECUENCIA_PAGO_OPTIONS = [
+  { value: 'mensual', label: 'Mensual' },
+  { value: 'quincenal', label: 'Quincenal' },
+  { value: 'semanal', label: 'Semanal' }
+];
+
+export const DURACION_CONTRATO_UNIDAD_OPTIONS = [
+  { value: 'meses', label: 'Meses' },
+  { value: 'años', label: 'Años' }
+];
+
+// ===== HELPER TYPES PARA FORMULARIOS =====
 
 export type PropertyFormStep = 
   | 'datos_generales'
   | 'ubicacion'
   | 'espacios'
   | 'condicionales'
+  | 'servicios'
   | 'galeria'
   | 'revision';
 
@@ -255,36 +349,15 @@ export interface StepConfig {
   isComplete: (data: PropertyFormData) => boolean;
 }
 
-export interface ServicioInmueble {
-  id: string;
-  tipo_servicio: string; // agua, luz, gas, internet, predial, etc.
-  nombre: string; // Nombre personalizado (ej: "CFE Cancún")
-  numero_contrato: string; // Número de contrato o servicio
-  monto: number;
-  es_fijo: boolean; // true = fijo, false = variable
-  ultima_fecha_pago: string; // formato: YYYY-MM-DD
-  frecuencia_valor: number; // 1, 2, 3, etc.
-  frecuencia_unidad: 'dias' | 'semanas' | 'meses' | 'anos';
-  activo: boolean;
-  link_pago?: string; // Opcional: URL para realizar el pago (futuro)
-  notas?: string; // Opcional: notas adicionales
+// ===== TIPOS PARA VALIDACIONES =====
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings?: string[];
 }
 
-// Agregar a la interfaz PropertyFormData existente:
-export interface PropertyFormData {
-  // ... todos los campos existentes ...
-  servicios?: ServicioInmueble[];
-}
-
-// Para las fechas de pago generadas automáticamente
-export interface FechaPagoServicio {
-  id: string;
-  servicio_id: string;
-  propiedad_id: string;
-  fecha_pago: string; // YYYY-MM-DD
-  monto_estimado: number;
-  pagado: boolean;
-  fecha_pago_real?: string; // Cuando se marca como pagado
-  notas?: string;
-  created_at: string;
+export interface StepValidation {
+  step: PropertyFormStep;
+  validation: ValidationResult;
 }

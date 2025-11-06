@@ -194,7 +194,7 @@ export default function CalendarioPagosPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
         {/* Tarjetas de Resumen - Estilo Plan C */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* Vencidos */}
           <div className="bg-white rounded-xl shadow-lg border-2 border-red-200 overflow-hidden transition-all hover:shadow-xl hover:scale-105">
             <div className="bg-gradient-to-r from-red-500 to-red-600 p-4">

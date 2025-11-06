@@ -146,6 +146,14 @@ export default function CatalogoPage() {
     router.push(`/dashboard/propiedad/${propiedadId}/cuentas`)
   }
 
+  const abrirAnuncio = (propiedadId: string) => {
+    router.push(`/dashboard/anuncio/${propiedadId}`)
+  }
+
+  const abrirInformacion = (propiedadId: string) => {
+    // Por ahora sin ruta
+  }
+
   const editarPropiedad = (propiedadId: string) => {
     toast.info('Función de edición en desarrollo')
     logger.log('Editar propiedad:', propiedadId)
@@ -513,8 +521,11 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                   <div className="w-12 text-center text-xs font-semibold text-green-600">Home</div>
                   <div className="w-12 text-center text-xs font-semibold text-cyan-600">Calendario</div>
                   <div className="w-12 text-center text-xs font-semibold text-orange-600">Tickets</div>
-                  <div className="w-12 text-center text-xs font-semibold text-amber-600">Inventario</div>
+                  <div className="w-12 text-center text-xs font-semibold text-gray-600">Inventario</div>
                   <div className="w-12 text-center text-xs font-semibold text-pink-600">Galería</div>
+                  <div className="w-12 text-center text-xs font-semibold text-yellow-600">Anuncio</div>
+                  <div className="w-12 text-center text-xs font-semibold text-blue-600">Info</div>
+                  <div className="w-12 text-center text-xs font-semibold text-emerald-600">Cuentas</div>
                 </div>
               </div>
             </div>
@@ -604,9 +615,9 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                       {/* 3. Inventario */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirInventario(prop.id); }}
-                        className="w-12 h-12 rounded-lg border-2 border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-400 hover:scale-110 transition-all flex items-center justify-center group"
+                        className="w-12 h-12 rounded-lg border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-400 hover:scale-110 transition-all flex items-center justify-center group"
                       >
-                        <svg className="w-7 h-7 text-amber-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <svg className="w-7 h-7 text-gray-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                           <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
                           <line x1="12" y1="22.08" x2="12" y2="12"/>
@@ -622,6 +633,40 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                           <rect x="3" y="3" width="18" height="18" rx="2"/>
                           <circle cx="8.5" cy="8.5" r="1.5"/>
                           <path d="M21 15l-5-5L5 21"/>
+                        </svg>
+                      </button>
+
+                      {/* 5. Anuncio (Campana) */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirAnuncio(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-yellow-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                        </svg>
+                      </button>
+
+                      {/* 6. Información */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirInformacion(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-blue-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10"/>
+                          <line x1="12" y1="16" x2="12" y2="12"/>
+                          <circle cx="12" cy="8" r="0.5" fill="currentColor"/>
+                        </svg>
+                      </button>
+
+                      {/* 7. Cuentas */}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); abrirCuentas(prop.id); }}
+                        className="w-12 h-12 rounded-lg border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-110 transition-all flex items-center justify-center group"
+                      >
+                        <svg className="w-7 h-7 text-emerald-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="12" y1="1" x2="12" y2="23"/>
+                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
                         </svg>
                       </button>
                     </div>

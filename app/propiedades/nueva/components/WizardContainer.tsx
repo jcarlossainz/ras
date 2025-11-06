@@ -29,6 +29,7 @@ import Step2_Ubicacion from '../steps/Step2_Ubicacion';
 import Step3_Espacios from '../steps/Step3_Espacios';
 import Step4_Condicionales from '../steps/Step4_Condicionales';
 import Step5_Servicios from '../steps/Step5_Servicios';
+import ContactoModal from '@/app/dashboard/directorio/components/ContactoModal';
 
 // Definición de los pasos del wizard (5 pasos)
 const WIZARD_STEPS = [
@@ -83,8 +84,20 @@ export default function WizardContainer({
   // Estado principal del formulario
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Estados para gestión de contactos
+  const [contactos, setContactos] = useState<Array<{
+    id: string;
+    nombre: string;
+    telefono: string;
+    correo: string;
+    tipo: 'inquilino' | 'proveedor';
+  }>>([]);
+  const [mostrarContactoModal, setMostrarContactoModal] = useState(false);
+  const [tipoContactoNuevo, setTipoContactoNuevo] = useState<'inquilino' | 'proveedor'>('inquilino');
+  
   const [formData, setFormData] = useState<PropertyFormData>({
-    // Datos básicos
+    // ===== DATOS BÁSICOS =====
     nombre_propiedad: '',
     tipo_propiedad: 'Departamento',
     estados: [],
@@ -95,11 +108,11 @@ export default function WizardContainer({
     tamano_construccion: '',
     tamano_construccion_unit: 'm²',
     
-    // Asignaciones
+    // ===== ASIGNACIONES =====
     propietario_id: '',
     supervisor_id: '',
     
-    // Ubicación
+    // ===== UBICACIÓN =====
     calle: '',
     colonia: '',
     codigo_postal: '',
@@ -112,25 +125,36 @@ export default function WizardContainer({
     nombre_complejo: '',
     amenidades_complejo: [],
     
-    // Condicionales - Renta largo plazo
+    // ===== CONDICIONALES - RENTA LARGO PLAZO =====
     inquilino_id: '',
-    fecha_inicio_contrato: '',
-    costo_renta_mensual: '',
     
-    // Condicionales - Renta vacacional
+    // Detalles del contrato
+    fecha_inicio_contrato: '',
+    fecha_fin_contrato: '',
+    duracion_contrato_valor: '',
+    duracion_contrato_unidad: 'meses',
+    notas_contrato: '',
+    
+    // Información de pagos
+    costo_renta_mensual: '',
+    frecuencia_pago: 'mensual',
+    dia_pago: '',
+    deposito_garantia: '',
+    
+    // ===== CONDICIONALES - RENTA VACACIONAL =====
     precio_noche: '',
     amenidades_vacacional: [],
     
-    // Condicionales - Venta
+    // ===== CONDICIONALES - VENTA =====
     precio_venta: '',
     
-    // Espacios
+    // ===== ESPACIOS =====
     espacios: [],
     
-    // Servicios (NUEVO)
+    // ===== SERVICIOS =====
     servicios: [],
     
-    // Metadata
+    // ===== METADATA =====
     is_draft: true,
     
     // Sobrescribir con datos iniciales si existen
@@ -196,6 +220,34 @@ export default function WizardContainer({
   const updateFormData = useCallback((stepData: Partial<PropertyFormData>) => {
     setFormData(prev => ({ ...prev, ...stepData }));
   }, []);
+
+  /**
+   * Abre modal para agregar nuevo contacto
+   * @param tipo Tipo de contacto a agregar (inquilino o proveedor)
+   */
+  const handleAgregarContacto = useCallback((tipo: 'inquilino' | 'proveedor') => {
+    setTipoContactoNuevo(tipo);
+    setMostrarContactoModal(true);
+  }, []);
+
+  /**
+   * Guarda un nuevo contacto en la lista
+   * @param data Datos del contacto
+   */
+  const handleGuardarContacto = useCallback((data: {
+    nombre: string;
+    telefono: string;
+    correo: string;
+    tipo: 'inquilino' | 'proveedor';
+  }) => {
+    const nuevoContacto = {
+      id: `cnt-${Date.now()}`,
+      ...data,
+      tipo: tipoContactoNuevo
+    };
+    setContactos(prev => [...prev, nuevoContacto]);
+    setMostrarContactoModal(false);
+  }, [tipoContactoNuevo]);
 
   /**
    * Navega a un paso específico con validación
@@ -301,10 +353,26 @@ export default function WizardContainer({
 
         {/* Contenido del paso actual */}
         <div className="mt-8">
-          <CurrentStepComponent
-            data={formData}
-            onUpdate={updateFormData}
-          />
+          {currentStep === 4 ? (
+            <Step4_Condicionales
+              data={formData}
+              onUpdate={updateFormData}
+              contactos={contactos}
+              onAgregarContacto={handleAgregarContacto}
+            />
+          ) : currentStep === 5 ? (
+            <Step5_Servicios
+              data={formData}
+              onUpdate={updateFormData}
+              contactos={contactos}
+              onAgregarContacto={handleAgregarContacto}
+            />
+          ) : (
+            <CurrentStepComponent
+              data={formData}
+              onUpdate={updateFormData}
+            />
+          )}
         </div>
 
         {/* Navegación inferior */}
@@ -326,6 +394,14 @@ export default function WizardContainer({
             </p>
           </div>
         )}
+
+        {/* Modal de contactos */}
+        <ContactoModal
+          isOpen={mostrarContactoModal}
+          onClose={() => setMostrarContactoModal(false)}
+          onSave={handleGuardarContacto}
+          contacto={null}
+        />
       </div>
     </div>
   );
