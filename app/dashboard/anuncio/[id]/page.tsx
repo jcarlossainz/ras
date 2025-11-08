@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase } from '@/Lib/supabase/client'
-import { logger } from '@/Lib/logger'
+import { supabase } from '@/lib/supabase/client'
+import { logger } from '@/lib/logger'
 import { useToast } from '@/hooks/useToast'
 import TopBar from '@/components/ui/topbar'
 import Loading from '@/components/ui/loading'

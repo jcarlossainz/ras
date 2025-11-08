@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { logger } from '@/Lib/logger';
+import { logger } from '@/lib/logger';
 
 interface ContactSelectorProps {
   value: string;

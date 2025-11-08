@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { supabase } from '@/Lib/supabase/client'
-import { logger } from '@/Lib/logger'
+import { supabase } from '@/lib/supabase/client'
+import { logger } from '@/lib/logger'
 import { useToast } from '@/hooks/useToast'
 import { useConfirm } from '@/components/ui/confirm-modal'
 import TopBar from '@/components/ui/topbar'
 import Loading from '@/components/ui/loading'
 import CompartirPropiedad from '@/components/CompartirPropiedad'
+import { getPropertyImages } from '@/lib/supabase/supabase-storage'
+import type { PropertyImage } from '@/types/property'
 
 interface Contacto {
   id: string
@@ -72,6 +74,193 @@ interface PropiedadData {
   created_at: string
   updated_at: string
   es_propio: boolean
+}
+
+// Componente de Galería inline
+function GaleriaPropiedad({ propiedadId, amenidades }: { propiedadId: string, amenidades?: string[] }) {
+  const [photos, setPhotos] = useState<PropertyImage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
+
+  useEffect(() => {
+    cargarFotos()
+  }, [propiedadId])
+
+  const cargarFotos = async () => {
+    try {
+      const photosData = await getPropertyImages(propiedadId)
+      setPhotos(photosData)
+    } catch (error) {
+      console.error('Error al cargar fotos:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin h-8 w-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto"></div>
+        <p className="text-gray-600 mt-2">Cargando fotos...</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {photos.length > 0 ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {photos.map((photo) => (
+            <div 
+              key={photo.id} 
+              className="relative group cursor-pointer rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-all aspect-square"
+              onClick={() => setSelectedPhoto(photo.url)}
+            >
+              <img 
+                src={photo.url_thumbnail || photo.url} 
+                alt={photo.caption || 'Foto de propiedad'} 
+                className="w-full h-full object-cover"
+              />
+              
+              {photo.is_cover && (
+                <div className="absolute top-2 left-2 px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded">
+                  PORTADA
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+          <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <p className="text-gray-600 font-medium">No hay fotos</p>
+          <p className="text-sm text-gray-500 mt-1">Las fotos se agregan desde la sección de Galería</p>
+        </div>
+      )}
+      
+      {amenidades && amenidades.length > 0 && (
+        <div className="pt-4 border-t-2 border-gray-200">
+          <span className="text-sm text-gray-700 font-bold block mb-3">Amenidades:</span>
+          <div className="flex flex-wrap gap-2">
+            {amenidades.map((amenidad, idx) => (
+              <span key={idx} className="px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium">
+                {amenidad}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedPhoto && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <img 
+            src={selectedPhoto} 
+            alt="Vista completa" 
+            className="max-w-full max-h-full object-contain"
+          />
+          <button 
+            className="absolute top-4 right-4 text-white text-3xl hover:text-purple-300 w-12 h-12 flex items-center justify-center"
+            onClick={() => setSelectedPhoto(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Componente de Ubicación inline
+function UbicacionPropiedad({ ubicacion }: { ubicacion?: any }) {
+  if (!ubicacion) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        No hay información de ubicación registrada
+      </div>
+    )
+  }
+
+  const direccionCompleta = [
+    ubicacion.calle,
+    ubicacion.colonia && `Col. ${ubicacion.colonia}`,
+    ubicacion.ciudad,
+    ubicacion.estado,
+    ubicacion.codigo_postal && `C.P. ${ubicacion.codigo_postal}`,
+    ubicacion.pais
+  ].filter(Boolean).join(', ')
+
+  return (
+    <div className="space-y-4">
+      {direccionCompleta && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">{direccionCompleta}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {ubicacion.referencias && (
+        <div className="text-sm text-gray-700">
+          <span className="font-medium">Referencias: </span>
+          {ubicacion.referencias}
+        </div>
+      )}
+
+      {ubicacion.google_maps_link && (
+        <a
+          href={ubicacion.google_maps_link}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+          Ver en Google Maps
+        </a>
+      )}
+
+      {ubicacion.es_complejo && ubicacion.nombre_complejo && (
+        <div className="pt-4 border-t border-gray-200">
+          <div className="flex items-center gap-2 mb-3">
+            <svg className="w-5 h-5 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+            <span className="text-sm font-bold text-gray-900">{ubicacion.nombre_complejo}</span>
+          </div>
+
+          {ubicacion.amenidades_complejo && ubicacion.amenidades_complejo.length > 0 && (
+            <div>
+              <span className="text-xs text-gray-600 font-medium block mb-2">Amenidades del complejo:</span>
+              <div className="flex flex-wrap gap-2">
+                {ubicacion.amenidades_complejo.map((amenidad: string, idx: number) => (
+                  <span 
+                    key={idx} 
+                    className="px-2 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded text-xs font-medium"
+                  >
+                    {amenidad}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function HomePropiedad() {
@@ -369,61 +558,6 @@ export default function HomePropiedad() {
               )}
             </div>
           </div>
-
-          {/* BOTONES DE ACCIÓN */}
-          <div className="flex gap-3">
-            {/* Compartir */}
-            <button
-              onClick={() => setShowCompartir(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                <polyline points="16 6 12 2 8 6"/>
-                <line x1="12" y1="2" x2="12" y2="15"/>
-              </svg>
-              Compartir
-            </button>
-
-            {/* Editar */}
-            <button
-              onClick={editarPropiedad}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 20h9"/>
-                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-              </svg>
-              Editar
-            </button>
-
-            {/* Duplicar */}
-            <button
-              onClick={abrirModalDuplicar}
-              className="flex items-center gap-2 px-4 py-2 bg-stone-600 text-white rounded-lg hover:bg-stone-700 transition-colors"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-              </svg>
-              Duplicar
-            </button>
-
-            {/* Cuentas */}
-            <button
-              onClick={abrirCuentas}
-              className="flex items-center gap-2 px-4 py-2 bg-neutral-600 text-white rounded-lg hover:bg-neutral-700 transition-colors"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-              Cuentas
-            </button>
-          </div>
         </div>
 
         {/* LAYOUT REORGANIZADO */}
@@ -493,67 +627,54 @@ export default function HomePropiedad() {
                     </span>
                   </div>
                 )}
+
+                {/* Precios */}
+                {propiedad.precio_noche && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Precio por noche:</span>
+                    <span className="text-gray-900 font-semibold">
+                      ${propiedad.precio_noche.toLocaleString('es-MX')} MXN
+                    </span>
+                  </div>
+                )}
+
+                {propiedad.costo_renta_mensual && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Renta mensual:</span>
+                    <span className="text-gray-900 font-semibold">
+                      ${propiedad.costo_renta_mensual.toLocaleString('es-MX')} MXN
+                    </span>
+                  </div>
+                )}
+
+                {propiedad.precio_venta && (
+                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Precio de venta:</span>
+                    <span className="text-gray-900 font-semibold">
+                      ${propiedad.precio_venta.toLocaleString('es-MX')} MXN
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Información Comercial */}
+            {/* Galería de Fotos */}
             <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="1" x2="12" y2="23"/>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 font-poppins">Información Comercial</h2>
+                <h2 className="text-xl font-bold text-gray-900 font-poppins">Galería de Fotos</h2>
               </div>
               
-              <div className="space-y-4">
-                {propiedad.costo_renta_mensual && (
-                  <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-200">
-                    <span className="text-sm text-emerald-700 font-medium">Renta Mensual</span>
-                    <p className="text-2xl font-bold text-emerald-900 mt-1">
-                      ${propiedad.costo_renta_mensual.toLocaleString('es-MX')}
-                    </p>
-                    {propiedad.fecha_inicio_contrato && (
-                      <p className="text-sm text-gray-600 mt-2">
-                        Inicio: {new Date(propiedad.fecha_inicio_contrato).toLocaleDateString('es-MX')}
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                {propiedad.precio_noche && (
-                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <span className="text-sm text-blue-700 font-medium">Precio por Noche</span>
-                    <p className="text-2xl font-bold text-blue-900 mt-1">
-                      ${propiedad.precio_noche.toLocaleString('es-MX')}
-                    </p>
-                  </div>
-                )}
-                
-                {propiedad.precio_venta && (
-                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                    <span className="text-sm text-purple-700 font-medium">Precio de Venta</span>
-                    <p className="text-2xl font-bold text-purple-900 mt-1">
-                      ${propiedad.precio_venta.toLocaleString('es-MX')}
-                    </p>
-                  </div>
-                )}
-
-                {propiedad.amenidades_vacacional && propiedad.amenidades_vacacional.length > 0 && (
-                  <div className="mt-4">
-                    <span className="text-sm text-gray-700 font-medium block mb-2">Amenidades:</span>
-                    <div className="flex flex-wrap gap-2">
-                      {propiedad.amenidades_vacacional.map((amenidad, idx) => (
-                        <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                          {amenidad}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+              <GaleriaPropiedad 
+                propiedadId={propiedad.id}
+                amenidades={propiedad.amenidades_vacacional}
+              />
             </div>
           </div>
 
@@ -603,10 +724,10 @@ export default function HomePropiedad() {
             </div>
           )}
 
-          {/* FILA 3: Contactos y Ubicación */}
+          {/* FILA 3: Asignaciones y Ubicación */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Contactos */}
+            {/* Asignaciones */}
             <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center">
@@ -617,7 +738,7 @@ export default function HomePropiedad() {
                     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 font-poppins">Contactos</h2>
+                <h2 className="text-xl font-bold text-gray-900 font-poppins">Asignaciones</h2>
               </div>
               
               <div className="space-y-4">
@@ -659,9 +780,17 @@ export default function HomePropiedad() {
                     )}
                   </div>
                 )}
+
+                {/* Proveedores - Información pendiente de mostrar */}
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <span className="text-xs text-gray-600 font-semibold uppercase">Proveedores</span>
+                  <p className="text-sm text-gray-500 mt-2 italic">
+                    La información de proveedores asignados a servicios específicos se mostrará aquí próximamente.
+                  </p>
+                </div>
                 
                 {!propietario && !supervisor && !inquilino && (
-                  <p className="text-gray-500 text-center py-8">No hay contactos registrados</p>
+                  <p className="text-gray-500 text-center py-8">No hay asignaciones registradas</p>
                 )}
               </div>
             </div>
@@ -678,61 +807,7 @@ export default function HomePropiedad() {
                 <h2 className="text-xl font-bold text-gray-900 font-poppins">Ubicación</h2>
               </div>
               
-              <div className="space-y-3">
-                {(propiedad.calle || propiedad.numero_exterior) && (
-                  <div>
-                    <span className="text-sm text-gray-600 font-medium">Dirección</span>
-                    <p className="text-gray-900 font-semibold">
-                      {[
-                        propiedad.calle,
-                        propiedad.numero_exterior,
-                        propiedad.numero_interior ? `Int. ${propiedad.numero_interior}` : ''
-                      ].filter(Boolean).join(' ')}
-                    </p>
-                  </div>
-                )}
-                
-                {propiedad.colonia && (
-                  <div>
-                    <span className="text-sm text-gray-600 font-medium">Colonia</span>
-                    <p className="text-gray-900 font-semibold">{propiedad.colonia}</p>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-2 gap-4">
-                  {propiedad.codigo_postal && (
-                    <div>
-                      <span className="text-sm text-gray-600 font-medium">C.P.</span>
-                      <p className="text-gray-900 font-semibold">{propiedad.codigo_postal}</p>
-                    </div>
-                  )}
-                  
-                  {propiedad.ciudad && (
-                    <div>
-                      <span className="text-sm text-gray-600 font-medium">Ciudad</span>
-                      <p className="text-gray-900 font-semibold">{propiedad.ciudad}</p>
-                    </div>
-                  )}
-                </div>
-                
-                {propiedad.estado && (
-                  <div>
-                    <span className="text-sm text-gray-600 font-medium">Estado</span>
-                    <p className="text-gray-900 font-semibold">{propiedad.estado}</p>
-                  </div>
-                )}
-                
-                {propiedad.pais && (
-                  <div>
-                    <span className="text-sm text-gray-600 font-medium">País</span>
-                    <p className="text-gray-900 font-semibold">{propiedad.pais}</p>
-                  </div>
-                )}
-                
-                {!propiedad.calle && !propiedad.colonia && !propiedad.codigo_postal && (
-                  <p className="text-gray-500 text-center py-8">No hay ubicación registrada</p>
-                )}
-              </div>
+              <UbicacionPropiedad ubicacion={propiedad.ubicacion} />
             </div>
           </div>
 
@@ -776,8 +851,50 @@ export default function HomePropiedad() {
               </div>
             </div>
 
+            {/* Botones de acción */}
+            <div className="pt-4 border-t-2 border-gray-300 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Compartir */}
+                <button
+                  onClick={() => setShowCompartir(true)}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                    <polyline points="16 6 12 2 8 6"/>
+                    <line x1="12" y1="2" x2="12" y2="15"/>
+                  </svg>
+                  Compartir
+                </button>
+
+                {/* Editar */}
+                <button
+                  onClick={editarPropiedad}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  Editar
+                </button>
+
+                {/* Duplicar */}
+                <button
+                  onClick={abrirModalDuplicar}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-stone-600 text-white rounded-lg hover:bg-stone-700 transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  Duplicar
+                </button>
+              </div>
+            </div>
+
             {propiedad.es_propio && (
-              <div className="pt-4 border-t-2 border-gray-300">
+              <div className="pt-3">
                 <button
                   onClick={eliminarPropiedad}
                   className="w-full px-4 py-3 bg-red-50 text-red-700 border-2 border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 transition-colors font-medium flex items-center justify-center gap-2"

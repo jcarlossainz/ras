@@ -15,19 +15,37 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('🔵 Form submitted')
+    console.log('🔵 Email:', email)
+    console.log('🔵 Password length:', password.length)
+    
     setError('')
     setLoading(true)
 
     try {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      console.log('🟡 Intentando login...')
+      
+      const { data, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (signInError) throw signInError
+      console.log('🟢 Respuesta de Supabase:', { data, error: signInError })
 
+      if (signInError) {
+        console.error('🔴 Error de Supabase:', signInError)
+        throw signInError
+      }
+
+      console.log('✅ Login exitoso!')
+      console.log('✅ Usuario:', data.user?.email)
+      console.log('✅ Sesión:', data.session ? 'Existe' : 'No existe')
+      
+      console.log('🚀 Redirigiendo a dashboard...')
       router.push('/dashboard')
-    } catch (err) {
+      
+    } catch (err: any) {
+      console.error('❌ Error en el catch:', err)
       setError('Email o contraseña incorrectos')
       setLoading(false)
     }

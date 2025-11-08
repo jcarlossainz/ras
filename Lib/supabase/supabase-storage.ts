@@ -1,5 +1,5 @@
 // 📁 src/lib/supabase-storage.ts
-import { supabase } from '@/Lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 
 /**
  * 📸 SUBIR IMAGEN DUAL (Thumbnail + Display)

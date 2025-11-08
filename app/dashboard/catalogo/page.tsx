@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/Lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/useToast'
 import { useConfirm } from '@/components/ui/confirm-modal'
-import { logger } from '@/Lib/logger'
+import { logger } from '@/lib/logger'
 import WizardModal from './components/WizardModal'
 import CompartirPropiedad from '@/components/CompartirPropiedad'
 import TopBar from '@/components/ui/topbar'
@@ -62,7 +62,7 @@ export default function CatalogoPage() {
   const cargarPropiedades = async (userId: string) => {
     const { data: propiedadesPropias } = await supabase
       .from('propiedades')
-      .select('id, user_id, nombre, codigo_postal, created_at')
+      .select('id, user_id, nombre, created_at')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
     
@@ -76,7 +76,7 @@ export default function CatalogoPage() {
       const idsCompartidos = propiedadesCompartidas.map(p => p.propiedad_id)
       const { data: datosCompartidos } = await supabase
         .from('propiedades')
-        .select('id, user_id, nombre, codigo_postal, created_at')
+        .select('id, user_id, nombre, created_at')
         .in('id', idsCompartidos)
       propiedadesCompartidasData = datosCompartidos || []
     }
@@ -142,16 +142,12 @@ export default function CatalogoPage() {
     router.push(`/dashboard/propiedad/${propiedadId}/calendario`)
   }
 
-  const abrirCuentas = (propiedadId: string) => {
+  const abrirBalance = (propiedadId: string) => {
     router.push(`/dashboard/propiedad/${propiedadId}/cuentas`)
   }
 
   const abrirAnuncio = (propiedadId: string) => {
     router.push(`/dashboard/anuncio/${propiedadId}`)
-  }
-
-  const abrirInformacion = (propiedadId: string) => {
-    // Por ahora sin ruta
   }
 
   const editarPropiedad = (propiedadId: string) => {
@@ -194,8 +190,67 @@ export default function CatalogoPage() {
     router.push('/login')
   }
 
+
   // ====================================
-  // 1. FUNCIÓN DE GUARDADO FINAL (con servicios)
+  // 🔧 HELPER: Convertir formato antiguo a nuevo
+  // ====================================
+  const convertirANuevoFormato = (data: any) => {
+    // Construir ubicacion (nuevo o desde campos sueltos)
+    const ubicacionFinal = data.ubicacion && typeof data.ubicacion === 'object' 
+      ? data.ubicacion 
+      : {
+          calle: data.calle || null,
+          numero_exterior: data.numero_exterior || null,
+          numero_interior: data.numero_interior || null,
+          colonia: data.colonia || null,
+          codigo_postal: data.codigo_postal || null,
+          ciudad: data.ciudad || null,
+          estado: data.estado || null,
+          pais: data.pais || null,
+          referencias: data.referencias || null,
+          google_maps_link: data.google_maps_link || null,
+          es_complejo: data.es_complejo || false,
+          nombre_complejo: data.nombre_complejo || null,
+          amenidades_complejo: data.amenidades_complejo || []
+        };
+
+    // ✅ NUEVO: Construir objeto precios consolidado
+    const preciosFinal = data.precios || {
+      mensual: data.precios?.mensual || null,
+      noche: data.precios?.noche || null,
+      venta: data.precios?.venta || null
+    };
+
+    // Convertir formato antiguo a nuevo
+    return {
+      ...data,
+      ubicacion: ubicacionFinal,
+      
+      // ✅ NUEVO: Campo precios consolidado
+      precios: preciosFinal,
+      
+      // Construir datos condicionales desde campos sueltos
+      datos_renta_largo_plazo: data.datos_renta_largo_plazo || (data.inquilino_id ? {
+        inquilino_id: data.inquilino_id || null,
+        fecha_inicio_contrato: data.fecha_inicio_contrato || null,
+        duracion_contrato: data.duracion_contrato || null,
+        frecuencia_pago: data.frecuencia_pago || null,
+        dia_pago: data.dia_pago || null,
+        precio_renta_disponible: data.precio_renta_disponible || null,
+        requisitos_renta: data.requisitos_renta || [],
+        requisitos_renta_custom: data.requisitos_renta_custom || []
+      } : null),
+      datos_renta_vacacional: data.datos_renta_vacacional || (data.amenidades_vacacional?.length > 0 ? {
+        amenidades_vacacional: data.amenidades_vacacional || [],
+        estancia_minima: data.estancia_minima || null,
+        politicas: data.politicas || null
+      } : null),
+      datos_venta: data.datos_venta || null
+    };
+  };
+
+  // ====================================
+  // ✅ FUNCIÓN DE GUARDADO FINAL - ESTRUCTURA JSON OPTIMIZADA
   // ====================================
   const handleWizardSave = async (data: PropertyFormData) => {
     if (!user?.id) {
@@ -204,37 +259,41 @@ export default function CatalogoPage() {
     }
 
     try {
+      // 🔧 Convertir a nuevo formato si es necesario
+      const dataConvertida = convertirANuevoFormato(data);
+      
+      // ✅ ESTRUCTURA OPTIMIZADA CON JSON (25 columnas en vez de 50+)
       const propiedadData = {
         user_id: user.id,
-        nombre: data.nombre_propiedad,
-        codigo_postal: data.codigo_postal || null,
-        calle: data.calle || null,
-        colonia: data.colonia || null,
-        ciudad: data.ciudad || null,
-        estado: data.estado || null,
-        pais: data.pais || null,
-        referencias: data.referencias || null,
-        google_maps_link: data.google_maps_link || null,
-        es_complejo: data.es_complejo || false,
-        nombre_complejo: data.nombre_complejo || null,
-        amenidades_complejo: data.amenidades_complejo || [],
-        tipo_propiedad: data.tipo_propiedad,
-        estados: data.estados,
-        mobiliario: data.mobiliario,
-        capacidad_personas: data.capacidad_personas ? parseInt(data.capacidad_personas) : null,
-        tamano_terreno: data.tamano_terreno ? parseFloat(data.tamano_terreno) : null,
-        tamano_terreno_unit: data.tamano_terreno_unit,
-        tamano_construccion: data.tamano_construccion ? parseFloat(data.tamano_construccion) : null,
-        tamano_construccion_unit: data.tamano_construccion_unit,
-        propietario_id: data.propietario_id,
-        supervisor_id: data.supervisor_id || null,
-        inquilino_id: data.inquilino_id || null,
-        fecha_inicio_contrato: data.fecha_inicio_contrato || null,
-        costo_renta_mensual: data.costo_renta_mensual ? parseFloat(data.costo_renta_mensual) : null,
-        precio_noche: data.precio_noche ? parseFloat(data.precio_noche) : null,
-        amenidades_vacacional: data.amenidades_vacacional || [],
-        precio_venta: data.precio_venta ? parseFloat(data.precio_venta) : null,
-        espacios: data.espacios,
+        nombre: dataConvertida.nombre_propiedad,
+        tipo_propiedad: dataConvertida.tipo_propiedad,
+        estados: dataConvertida.estados,
+        
+        // Datos básicos
+        mobiliario: dataConvertida.mobiliario,
+        capacidad_personas: dataConvertida.capacidad_personas || null,
+        tamano_terreno: dataConvertida.tamano_terreno || null,
+        tamano_construccion: dataConvertida.tamano_construccion || null,
+        
+        // ✅ UBICACIÓN como JSON (toda la dirección en un solo campo)
+        ubicacion: dataConvertida.ubicacion || null,
+        
+        // Espacios
+        espacios: dataConvertida.espacios || [],
+        
+        // ✅ PRECIOS consolidados en un solo JSON
+        precios: dataConvertida.precios || null,
+        
+        // ✅ Datos condicionales según estados (también JSON)
+        datos_renta_largo_plazo: dataConvertida.datos_renta_largo_plazo || null,
+        datos_renta_vacacional: dataConvertida.datos_renta_vacacional || null,
+        datos_venta: dataConvertida.datos_venta || null,
+        
+        // Contactos
+        propietario_id: dataConvertida.propietario_id || null,
+        supervisor_id: dataConvertida.supervisor_id || null,
+        
+        // Control
         is_draft: false,
         updated_at: new Date().toISOString()
       };
@@ -266,7 +325,7 @@ export default function CatalogoPage() {
       }
 
       // ========================================
-      // NUEVO: GUARDAR SERVICIOS
+      // GUARDAR SERVICIOS
       // ========================================
       if (data.servicios && data.servicios.length > 0) {
         logger.log('Guardando servicios...', data.servicios.length);
@@ -294,151 +353,148 @@ export default function CatalogoPage() {
 
         if (errorServicios) {
           logger.error('Error al guardar servicios:', errorServicios);
-          // No lanzar error, continuar con el guardado de la propiedad
-          toast?.error('Propiedad guardada pero hubo un error al guardar los servicios');
+          toast.error('Propiedad guardada pero hubo un error al guardar los servicios');
         } else {
           logger.log('✅ Servicios guardados correctamente');
-          // Las fechas de pago se generan automáticamente por el trigger en Supabase ✨
         }
       }
-      // ========================================
 
       draftIdRef.current = null;
       cargarPropiedades(user.id);
-      toast?.success('✅ Propiedad guardada correctamente');
+      toast.success('Propiedad guardada correctamente');
       
     } catch (error) {
       logger.error('Error al guardar propiedad:', error);
-      toast?.error('❌ Error al guardar la propiedad');
+      toast.error('Error al guardar la propiedad');
       throw error;
     }
   };
 
-// ====================================
-// 2. FUNCIÓN DE GUARDADO BORRADOR (con servicios)
-// ====================================
-const handleWizardSaveDraft = async (data: PropertyFormData) => {
-  if (!user?.id) {
-    logger.warn('Usuario no autenticado');
-    return;
-  }
-
-  if (isSavingRef.current) {
-    logger.log('Ya hay un guardado en proceso');
-    return;
-  }
-
-  isSavingRef.current = true;
-
-  try {
-    const draftData = {
-      user_id: user.id,
-      nombre: data.nombre_propiedad || 'Borrador sin nombre',
-      codigo_postal: data.codigo_postal || null,
-      calle: data.calle || null,
-      colonia: data.colonia || null,
-      ciudad: data.ciudad || null,
-      estado: data.estado || null,
-      pais: data.pais || null,
-      referencias: data.referencias || null,
-      google_maps_link: data.google_maps_link || null,
-      es_complejo: data.es_complejo || false,
-      nombre_complejo: data.nombre_complejo || null,
-      amenidades_complejo: data.amenidades_complejo || [],
-      tipo_propiedad: data.tipo_propiedad,
-      estados: data.estados,
-      mobiliario: data.mobiliario,
-      capacidad_personas: data.capacidad_personas ? parseInt(data.capacidad_personas) : null,
-      tamano_terreno: data.tamano_terreno ? parseFloat(data.tamano_terreno) : null,
-      tamano_terreno_unit: data.tamano_terreno_unit,
-      tamano_construccion: data.tamano_construccion ? parseFloat(data.tamano_construccion) : null,
-      tamano_construccion_unit: data.tamano_construccion_unit,
-      propietario_id: data.propietario_id || null,
-      supervisor_id: data.supervisor_id || null,
-      inquilino_id: data.inquilino_id || null,
-      fecha_inicio_contrato: data.fecha_inicio_contrato || null,
-      costo_renta_mensual: data.costo_renta_mensual ? parseFloat(data.costo_renta_mensual) : null,
-      precio_noche: data.precio_noche ? parseFloat(data.precio_noche) : null,
-      amenidades_vacacional: data.amenidades_vacacional || [],
-      precio_venta: data.precio_venta ? parseFloat(data.precio_venta) : null,
-      espacios: data.espacios,
-      is_draft: true,
-      updated_at: new Date().toISOString()
-    };
-
-    let propiedadId: string;
-
-    if (draftIdRef.current) {
-      const { error } = await supabase
-        .from('propiedades')
-        .update(draftData)
-        .eq('id', draftIdRef.current);
-
-      if (error) throw error;
-      propiedadId = draftIdRef.current;
-      logger.log(`Borrador actualizado: ${draftIdRef.current}`);
-      
-    } else {
-      const { data: nuevoBorrador, error } = await supabase
-        .from('propiedades')
-        .insert({
-          ...draftData,
-          created_at: new Date().toISOString()
-        })
-        .select('id')
-        .single();
-
-      if (error) throw error;
-      
-      draftIdRef.current = nuevoBorrador.id;
-      propiedadId = nuevoBorrador.id;
-      logger.log(`Borrador creado: ${nuevoBorrador.id}`);
+  // ====================================
+  // ✅ FUNCIÓN DE GUARDADO BORRADOR - ESTRUCTURA JSON OPTIMIZADA
+  // ====================================
+  const handleWizardSaveDraft = async (data: PropertyFormData) => {
+    if (!user?.id) {
+      logger.warn('Usuario no autenticado');
+      return;
     }
 
-    // ========================================
-    // NUEVO: GUARDAR SERVICIOS EN BORRADOR (OPCIONAL)
-    // ========================================
-    // Puedes decidir si quieres guardar servicios en borradores o solo en guardado final
-    if (data.servicios && data.servicios.length > 0) {
-      logger.log('Guardando servicios en borrador...', data.servicios.length);
-      
-      // Primero eliminar servicios existentes del borrador
-      await supabase
-        .from('servicios_inmueble')
-        .delete()
-        .eq('propiedad_id', propiedadId);
-
-      // Insertar servicios actualizados
-      const serviciosParaInsertar = data.servicios.map(servicio => ({
-        propiedad_id: propiedadId,
-        tipo_servicio: servicio.tipo_servicio,
-        nombre: servicio.nombre,
-        numero_contrato: servicio.numero_contrato || null,
-        monto: servicio.monto,
-        es_fijo: servicio.es_fijo,
-        ultima_fecha_pago: servicio.ultima_fecha_pago,
-        frecuencia_valor: servicio.frecuencia_valor,
-        frecuencia_unidad: servicio.frecuencia_unidad,
-        link_pago: servicio.link_pago || null,
-        activo: true,
-        notas: servicio.notas || null
-      }));
-
-      await supabase
-        .from('servicios_inmueble')
-        .insert(serviciosParaInsertar);
-      
-      logger.log('✅ Servicios de borrador guardados');
+    if (isSavingRef.current) {
+      logger.log('Ya hay un guardado en proceso');
+      return;
     }
-    // ========================================
 
-  } catch (error) {
-    logger.error('Error al guardar borrador:', error);
-  } finally {
-    setTimeout(() => {
-      isSavingRef.current = false;
-    }, 500);
-  }
+    isSavingRef.current = true;
+
+    try {
+      // 🔧 Convertir a nuevo formato si es necesario
+      const dataConvertida = convertirANuevoFormato(data);
+      
+      // ✅ ESTRUCTURA OPTIMIZADA CON JSON (25 columnas en vez de 50+)
+      const draftData = {
+        user_id: user.id,
+        nombre: dataConvertida.nombre_propiedad || 'Borrador sin nombre',
+        tipo_propiedad: dataConvertida.tipo_propiedad,
+        estados: dataConvertida.estados,
+        
+        // Datos básicos
+        mobiliario: dataConvertida.mobiliario,
+        capacidad_personas: dataConvertida.capacidad_personas || null,
+        tamano_terreno: dataConvertida.tamano_terreno || null,
+        tamano_construccion: dataConvertida.tamano_construccion || null,
+        
+        // ✅ UBICACIÓN como JSON
+        ubicacion: dataConvertida.ubicacion || null,
+        
+        // Espacios
+        espacios: dataConvertida.espacios || [],
+        
+        // ✅ PRECIOS consolidados en un solo JSON
+        precios: dataConvertida.precios || null,
+        
+        // ✅ Datos condicionales
+        datos_renta_largo_plazo: dataConvertida.datos_renta_largo_plazo || null,
+        datos_renta_vacacional: dataConvertida.datos_renta_vacacional || null,
+        datos_venta: dataConvertida.datos_venta || null,
+        
+        // Contactos
+        propietario_id: dataConvertida.propietario_id || null,
+        supervisor_id: dataConvertida.supervisor_id || null,
+        
+        // Control
+        is_draft: true,
+        updated_at: new Date().toISOString()
+      };
+
+      let propiedadId: string;
+
+      if (draftIdRef.current) {
+        const { error } = await supabase
+          .from('propiedades')
+          .update(draftData)
+          .eq('id', draftIdRef.current);
+
+        if (error) throw error;
+        propiedadId = draftIdRef.current;
+        logger.log(`Borrador actualizado: ${draftIdRef.current}`);
+        
+      } else {
+        const { data: nuevoBorrador, error } = await supabase
+          .from('propiedades')
+          .insert({
+            ...draftData,
+            created_at: new Date().toISOString()
+          })
+          .select('id')
+          .single();
+
+        if (error) throw error;
+        
+        draftIdRef.current = nuevoBorrador.id;
+        propiedadId = nuevoBorrador.id;
+        logger.log(`Borrador creado: ${nuevoBorrador.id}`);
+      }
+
+      // Guardar servicios en borrador (opcional)
+      if (data.servicios && data.servicios.length > 0) {
+        logger.log('Guardando servicios en borrador...', data.servicios.length);
+        
+        // Primero eliminar servicios existentes del borrador
+        await supabase
+          .from('servicios_inmueble')
+          .delete()
+          .eq('propiedad_id', propiedadId);
+
+        // Insertar servicios actualizados
+        const serviciosParaInsertar = data.servicios.map(servicio => ({
+          propiedad_id: propiedadId,
+          tipo_servicio: servicio.tipo_servicio,
+          nombre: servicio.nombre,
+          numero_contrato: servicio.numero_contrato || null,
+          monto: servicio.monto,
+          es_fijo: servicio.es_fijo,
+          ultima_fecha_pago: servicio.ultima_fecha_pago,
+          frecuencia_valor: servicio.frecuencia_valor,
+          frecuencia_unidad: servicio.frecuencia_unidad,
+          link_pago: servicio.link_pago || null,
+          activo: true,
+          notas: servicio.notas || null
+        }));
+
+        await supabase
+          .from('servicios_inmueble')
+          .insert(serviciosParaInsertar);
+        
+        logger.log('✅ Servicios de borrador guardados');
+      }
+
+    } catch (error) {
+      logger.error('Error al guardar borrador:', error);
+    } finally {
+      setTimeout(() => {
+        isSavingRef.current = false;
+      }, 500);
+    }
   };
 
   const handleCloseWizard = () => {
@@ -448,8 +504,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
   };
 
   const propiedadesFiltradas = propiedades.filter(prop => {
-    const cumpleBusqueda = prop.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-                          (prop.codigo_postal && prop.codigo_postal.includes(busqueda))
+    const cumpleBusqueda = prop.nombre.toLowerCase().includes(busqueda.toLowerCase())
     
     const cumpleFiltro = 
       filtroPropiedad === 'todos' ||
@@ -481,7 +536,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
               <div className="relative">
                 <input
                   type="text"
-                  placeholder="Buscar por nombre o código postal..."
+                  placeholder="Buscar por nombre..."
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border-2 border-gray-200 rounded-lg focus:border-ras-primary focus:outline-none transition-colors"
@@ -524,8 +579,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                   <div className="w-12 text-center text-xs font-semibold text-gray-600">Inventario</div>
                   <div className="w-12 text-center text-xs font-semibold text-pink-600">Galería</div>
                   <div className="w-12 text-center text-xs font-semibold text-yellow-600">Anuncio</div>
-                  <div className="w-12 text-center text-xs font-semibold text-blue-600">Info</div>
-                  <div className="w-12 text-center text-xs font-semibold text-emerald-600">Cuentas</div>
+                  <div className="w-12 text-center text-xs font-semibold text-emerald-600">Balance</div>
                 </div>
               </div>
             </div>
@@ -575,7 +629,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
 
                     {/* Botones de acción */}
                     <div className="flex gap-4">
-                      {/* 0. Home */}
+                      {/* Home */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirHome(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -586,7 +640,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                         </svg>
                       </button>
 
-                      {/* 1. Calendario */}
+                      {/* Calendario */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirCalendario(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-cyan-200 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -599,7 +653,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                         </svg>
                       </button>
 
-                      {/* 2. Tickets */}
+                      {/* Tickets */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirTickets(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -612,7 +666,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                         </svg>
                       </button>
 
-                      {/* 3. Inventario */}
+                      {/* Inventario */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirInventario(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -624,7 +678,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                         </svg>
                       </button>
 
-                      {/* 4. Galería */}
+                      {/* Galería */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirGaleria(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 hover:border-pink-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -636,7 +690,7 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                         </svg>
                       </button>
 
-                      {/* 5. Anuncio (Campana) */}
+                      {/* Anuncio */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirAnuncio(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -647,26 +701,13 @@ const handleWizardSaveDraft = async (data: PropertyFormData) => {
                         </svg>
                       </button>
 
-                      {/* 6. Información */}
+                      {/* Balance */}
                       <button
-                        onClick={(e) => { e.stopPropagation(); abrirInformacion(prop.id); }}
-                        className="w-12 h-12 rounded-lg border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 hover:border-blue-400 hover:scale-110 transition-all flex items-center justify-center group"
-                      >
-                        <svg className="w-7 h-7 text-blue-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10"/>
-                          <line x1="12" y1="16" x2="12" y2="12"/>
-                          <circle cx="12" cy="8" r="0.5" fill="currentColor"/>
-                        </svg>
-                      </button>
-
-                      {/* 7. Cuentas */}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); abrirCuentas(prop.id); }}
+                        onClick={(e) => { e.stopPropagation(); abrirBalance(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-110 transition-all flex items-center justify-center group"
                       >
                         <svg className="w-7 h-7 text-emerald-600 group-hover:scale-110 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <line x1="12" y1="1" x2="12" y2="23"/>
-                          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                          <path d="M12 2C6.5 2 2 4.5 2 7.5v1C2 11.5 6.5 14 12 14s10-2.5 10-5.5v-1C22 4.5 17.5 2 12 2z"/><path d="M2 12c0 3 4.5 5.5 10 5.5S22 15 22 12"/><path d="M2 16.5c0 3 4.5 5.5 10 5.5s10-2.5 10-5.5"/>
                         </svg>
                       </button>
                     </div>

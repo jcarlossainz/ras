@@ -62,6 +62,17 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
     onUpdate({ [field]: value });
   };
 
+  // NUEVO: Helper para actualizar precios
+  const handlePrecioChange = (tipo: 'mensual' | 'noche' | 'venta', value: string) => {
+    const precioNumerico = value === '' ? null : parseFloat(value);
+    onUpdate({ 
+      precios: { 
+        ...data.precios, 
+        [tipo]: precioNumerico 
+      } 
+    });
+  };
+
   const toggleAmenidad = (amenidad: string) => {
     const newAmenidades = data.amenidades_vacacional?.includes(amenidad)
       ? data.amenidades_vacacional.filter(a => a !== amenidad)
@@ -77,7 +88,8 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
       handleChange('fecha_inicio_contrato', '');
       handleChange('duracion_contrato_valor', '');
       handleChange('duracion_contrato_unidad', 'meses');
-      handleChange('costo_renta_mensual', '');
+      // ACTUALIZADO: Limpiar precio mensual usando la nueva estructura
+      handlePrecioChange('mensual', '');
       handleChange('frecuencia_pago', 'mensual');
       handleChange('dia_pago', '');
     } else {
@@ -202,14 +214,14 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                     </div>
                   </div>
 
-                  {/* Monto de renta */}
+                  {/* ACTUALIZADO: Monto de renta usando precios.mensual */}
                   <div>
                     <Input
-                      id="costo_renta_mensual"
+                      id="precio_mensual"
                       label="Monto de renta"
                       type="number"
-                      value={data.costo_renta_mensual}
-                      onChange={(e) => handleChange('costo_renta_mensual', e.target.value)}
+                      value={data.precios?.mensual?.toString() || ''}
+                      onChange={(e) => handlePrecioChange('mensual', e.target.value)}
                       placeholder="15000"
                       prefix="$"
                     />
@@ -300,9 +312,12 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                         <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-blue-50">
                           <input
                             type="checkbox"
-                            checked
-                            disabled
-                            className="rounded text-ras-azul"
+                            checked={true}
+                            onChange={() => {
+                              const newCustom = data.requisitos_renta_custom?.filter((_, i) => i !== index) || [];
+                              handleChange('requisitos_renta_custom', newCustom);
+                            }}
+                            className="rounded text-ras-azul focus:ring-ras-azul"
                           />
                           <span className="text-sm font-medium text-gray-700">{requisito}</span>
                         </label>
@@ -312,27 +327,47 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                             const newCustom = data.requisitos_renta_custom?.filter((_, i) => i !== index) || [];
                             handleChange('requisitos_renta_custom', newCustom);
                           }}
-                          className="px-2 py-1 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm"
+                          className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                         >
-                          ✕
+                          ×
                         </button>
                       </div>
                     ))}
+                  </div>
 
-                    {/* Botón agregar otro requisito */}
+                  {/* Agregar requisito personalizado */}
+                  <div className="flex gap-2 mt-3">
+                    <input
+                      type="text"
+                      id="nuevo-requisito"
+                      placeholder="Agregar requisito personalizado..."
+                      className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          const input = e.currentTarget;
+                          const valor = input.value.trim();
+                          if (valor) {
+                            const customActuales = data.requisitos_renta_custom || [];
+                            handleChange('requisitos_renta_custom', [...customActuales, valor]);
+                            input.value = '';
+                          }
+                        }
+                      }}
+                    />
                     <button
                       type="button"
                       onClick={() => {
-                        const nuevoRequisito = prompt('Ingresa el requisito personalizado:');
-                        if (nuevoRequisito && nuevoRequisito.trim()) {
-                          const custom = data.requisitos_renta_custom || [];
-                          handleChange('requisitos_renta_custom', [...custom, nuevoRequisito.trim()]);
+                        const input = document.getElementById('nuevo-requisito') as HTMLInputElement;
+                        const valor = input?.value.trim();
+                        if (valor) {
+                          const customActuales = data.requisitos_renta_custom || [];
+                          handleChange('requisitos_renta_custom', [...customActuales, valor]);
+                          input.value = '';
                         }
                       }}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-dashed border-gray-300 hover:border-ras-azul hover:bg-ras-azul/5 transition-all justify-center text-gray-600 hover:text-ras-azul"
+                      className="px-4 py-2 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors text-sm font-medium"
                     >
-                      <span className="text-lg">+</span>
-                      <span className="text-sm font-medium">Otro</span>
+                      Agregar
                     </button>
                   </div>
                 </div>
@@ -346,14 +381,14 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
           <div key={estado} className="space-y-5">
             <h3 className="font-bold text-gray-900 font-poppins text-lg">Renta Vacacional</h3>
 
-            {/* Precio por noche */}
+            {/* ACTUALIZADO: Precio por noche usando precios.noche */}
             <div>
               <Input
                 id="precio_noche"
                 label="Precio por noche"
                 type="number"
-                value={data.precio_noche}
-                onChange={(e) => handleChange('precio_noche', e.target.value)}
+                value={data.precios?.noche?.toString() || ''}
+                onChange={(e) => handlePrecioChange('noche', e.target.value)}
                 placeholder="1500"
                 prefix="$"
               />
@@ -395,13 +430,14 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
           <div key={estado} className="space-y-5">
             <h3 className="font-bold text-gray-900 font-poppins text-lg">Venta</h3>
 
+            {/* ACTUALIZADO: Precio de venta usando precios.venta */}
             <div>
               <Input
                 id="precio_venta"
                 label="Precio de venta"
                 type="number"
-                value={data.precio_venta}
-                onChange={(e) => handleChange('precio_venta', e.target.value)}
+                value={data.precios?.venta?.toString() || ''}
+                onChange={(e) => handlePrecioChange('venta', e.target.value)}
                 placeholder="3500000"
                 prefix="$"
               />
@@ -481,27 +517,31 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
         </div>
       </div>
 
-      {/* SECCIÓN: DATOS CONDICIONALES */}
-      {data.estados.length === 0 ? (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-5">
-          <div className="flex gap-3">
-            <span className="text-yellow-600 text-xl">⚠️</span>
-            <div>
-              <h3 className="font-semibold text-yellow-900 mb-1">No hay estados seleccionados</h3>
-              <p className="text-sm text-yellow-800">
-                Regresa al Paso 1 y selecciona al menos un estado para continuar.
-              </p>
-            </div>
+      {/* SECCIÓN: DATOS ESPECÍFICOS POR ESTADO */}
+      {data.estados && data.estados.length > 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-bold text-gray-900 font-poppins mb-5">
+            Datos Específicos
+          </h2>
+
+          <div className="space-y-6">
+            {data.estados.map(estado => renderSection(estado))}
           </div>
         </div>
       ) : (
-        <>
-          {data.estados.map(estado => (
-            <div key={estado} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              {renderSection(estado)}
-            </div>
-          ))}
-        </>
+        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center">
+          <div className="text-blue-600 mb-2">
+            <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-blue-900 mb-1">
+            Selecciona al menos un estado
+          </h3>
+          <p className="text-sm text-blue-700">
+            Ve al Paso 1 y selecciona uno o más estados para la propiedad (Renta largo plazo, Renta vacacional, Venta, etc.)
+          </p>
+        </div>
       )}
     </div>
   );

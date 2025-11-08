@@ -136,17 +136,19 @@ export default function WizardContainer({
     notas_contrato: '',
     
     // Información de pagos
-    costo_renta_mensual: '',
     frecuencia_pago: 'mensual',
     dia_pago: '',
     deposito_garantia: '',
     
-    // ===== CONDICIONALES - RENTA VACACIONAL =====
-    precio_noche: '',
-    amenidades_vacacional: [],
+    // ===== PRECIOS (NUEVO: estructura consolidada) =====
+    precios: {
+      mensual: null,
+      noche: null,
+      venta: null
+    },
     
-    // ===== CONDICIONALES - VENTA =====
-    precio_venta: '',
+    // ===== CONDICIONALES - RENTA VACACIONAL =====
+    amenidades_vacacional: [],
     
     // ===== ESPACIOS =====
     espacios: [],

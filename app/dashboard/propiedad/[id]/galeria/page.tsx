@@ -1,4 +1,5 @@
 // 📁 src/app/dashboard/propiedad/[id]/galeria/page.tsx
+// ✅ PLAN C APLICADO - Alerts y Confirms profesionales
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -12,10 +13,19 @@ import Loading from '@/components/ui/loading';
 import EmptyState from '@/components/ui/emptystate';
 import type { PropertyFormData, PropertyImage } from '@/types/property';
 
+// ✅ PLAN C: Imports de notificaciones profesionales
+import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/components/ui/confirm-modal';
+import { logger } from '@/lib/logger';
+
 export default function GaleriaPage() {
   const params = useParams();
   const router = useRouter();
   const propertyId = params.id as string;
+
+  // ✅ PLAN C: Hooks de notificaciones
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [user, setUser] = useState<any>(null);
   const [property, setProperty] = useState<PropertyFormData | null>(null);
@@ -97,22 +107,25 @@ export default function GaleriaPage() {
       ];
 
       // 5. Actualizar estado
-      const propertyComplete = {
+      const propertyComplete: Partial<PropertyFormData> = {
         id: propertyId,
         nombre_propiedad: propertyData?.nombre || 'Mi Propiedad',
         tipo_propiedad: propertyData?.tipo_propiedad || 'Casa',
-        estado_propiedad: propertyData?.estados?.[0] || 'Disponible',
+        estados: propertyData?.estados || ['Disponible'],
         photos: photosData,
         espacios: espaciosConOpciones,
-      } as PropertyFormData;
+      };
 
-      setProperty(propertyComplete);
+      setProperty(propertyComplete as PropertyFormData);
       setPhotos(photosData);
       console.log('✅ Propiedad cargada exitosamente con espacios:', espaciosConOpciones);
 
     } catch (error) {
-      console.error('❌ Error en loadProperty:', error);
-      alert('Error al cargar la propiedad. Verifica que existe en la base de datos.');
+      // ✅ PLAN C: Reemplazo de alert() por toast.error()
+      logger.error('Error al cargar propiedad:', error);
+      toast.error('Error al cargar la propiedad', {
+        duration: 5000
+      });
       router.push('/dashboard/catalogo');
     } finally {
       setLoading(false);
@@ -142,9 +155,16 @@ export default function GaleriaPage() {
     return iconMap[type] || '📍';
   };
 
+  // ✅ PLAN C: Logout con confirmación profesional
   const handleLogout = async () => {
-    if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+    const confirmed = await confirm.default(
+      '¿Cerrar sesión?',
+      'Tendrás que volver a iniciar sesión'
+    );
+    
+    if (confirmed) {
       await supabase.auth.signOut();
+      toast.info('Sesión cerrada correctamente');
       router.push('/login');
     }
   };
@@ -183,61 +203,81 @@ export default function GaleriaPage() {
             url: uploaded.urls.display,
             url_thumbnail: uploaded.urls.thumbnail,
             is_cover: photos.length === 0 && i === 0,
-            order_index: photos.length + i,
-            space_type: null,
             caption: file.name,
-            uploaded_at: uploaded.metadata.uploadedAt,
+            created_at: new Date().toISOString(),
+            space_type: 'sin-espacio',
+            property_id: propertyId,
           });
 
         } catch (fileError) {
-          console.error(`❌ Error procesando ${file.name}:`, fileError);
-          alert(`Error con ${file.name}: ${fileError instanceof Error ? fileError.message : 'Error desconocido'}`);
+          // ✅ PLAN C: Error individual por archivo con toast
+          logger.error(`Error con archivo ${file.name}:`, fileError);
+          toast.error(`Error al subir ${file.name}`, {
+            duration: 4000
+          });
         }
       }
 
+      // ✅ PLAN C: Éxito con toast profesional
       if (newPhotos.length > 0) {
-        const updatedPhotos = [...photos, ...newPhotos];
-        setPhotos(updatedPhotos);
-        alert(`✅ ${newPhotos.length} foto(s) subida(s) exitosamente`);
+        setPhotos([...photos, ...newPhotos]);
+        toast.success(`${newPhotos.length} foto(s) subida(s) exitosamente`, {
+          duration: 3000
+        });
       }
 
     } catch (error) {
-      console.error('❌ Error general:', error);
-      alert(`Error: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      // ✅ PLAN C: Error general con toast
+      logger.error('Error al subir fotos:', error);
+      toast.error('Error al subir las fotos. Intenta nuevamente', {
+        duration: 5000
+      });
     } finally {
       setIsUploading(false);
     }
   };
 
+  // ✅ PLAN C: Establecer portada con toast
   const handleSetCover = async (photoId: string) => {
     try {
-      // Desmarcar todas las fotos de portada
+      // Quitar portada de todas las fotos
       await supabase
         .from('property_images')
         .update({ is_cover: false })
         .eq('property_id', propertyId);
 
-      // Marcar la nueva foto como portada
+      // Establecer nueva portada
       await supabase
         .from('property_images')
         .update({ is_cover: true })
         .eq('id', photoId);
 
       // Actualizar estado local
-      setPhotos(photos.map(p => ({
-        ...p,
-        is_cover: p.id === photoId
+      setPhotos(photos.map(photo => ({
+        ...photo,
+        is_cover: photo.id === photoId
       })));
 
-      alert('✅ Foto de portada actualizada');
+      toast.success('Foto de portada actualizada', {
+        duration: 3000
+      });
+
     } catch (error) {
-      console.error('Error al establecer portada:', error);
-      alert('Error al establecer la foto de portada');
+      logger.error('Error al establecer portada:', error);
+      toast.error('Error al establecer la foto de portada', {
+        duration: 4000
+      });
     }
   };
 
+  // ✅ PLAN C: Eliminar con confirmación profesional
   const handleDelete = async (photoId: string) => {
-    if (!confirm('¿Estás seguro que deseas eliminar esta foto?')) return;
+    const confirmed = await confirm.danger(
+      '¿Eliminar esta foto?',
+      'Esta acción no se puede deshacer'
+    );
+    
+    if (!confirmed) return;
 
     try {
       await supabase
@@ -246,31 +286,44 @@ export default function GaleriaPage() {
         .eq('id', photoId);
 
       setPhotos(photos.filter(p => p.id !== photoId));
-      alert('✅ Foto eliminada');
+      
+      toast.success('Foto eliminada correctamente', {
+        duration: 3000
+      });
+
     } catch (error) {
-      console.error('Error al eliminar foto:', error);
-      alert('Error al eliminar la foto');
+      logger.error('Error al eliminar foto:', error);
+      toast.error('Error al eliminar la foto', {
+        duration: 4000
+      });
     }
   };
 
+  // ✅ PLAN C: Asignar espacio con toast
   const handleAssignSpace = async (photoId: string, spaceType: string) => {
     try {
       await supabase
         .from('property_images')
-        .update({ space_type: spaceType === 'sin-espacio' ? null : spaceType })
+        .update({ space_type: spaceType })
         .eq('id', photoId);
 
-      setPhotos(photos.map(p => 
-        p.id === photoId 
-          ? { ...p, space_type: spaceType === 'sin-espacio' ? null : spaceType }
-          : p
+      setPhotos(photos.map(photo => 
+        photo.id === photoId 
+          ? { ...photo, space_type: spaceType }
+          : photo
       ));
 
-      const espacioNombre = property?.espacios?.find(e => e.id === spaceType)?.name || 'Sin espacio';
-      alert(`✅ Foto asignada a: ${espacioNombre}`);
+      const espacioNombre = property?.espacios?.find(e => e.id === spaceType)?.name || spaceType;
+      
+      toast.success(`Foto asignada a: ${espacioNombre}`, {
+        duration: 3000
+      });
+
     } catch (error) {
-      console.error('Error al asignar espacio:', error);
-      alert('Error al asignar espacio');
+      logger.error('Error al asignar espacio:', error);
+      toast.error('Error al asignar espacio', {
+        duration: 4000
+      });
     }
   };
 
@@ -279,9 +332,18 @@ export default function GaleriaPage() {
     setEditingCaption(photo.caption || '');
   };
 
+  const handleCancelEdit = () => {
+    setEditingPhotoId(null);
+    setEditingCaption('');
+  };
+
+  // ✅ PLAN C: Guardar caption con validación y toast
   const handleSaveCaption = async (photoId: string) => {
+    // Validación
     if (!editingCaption.trim()) {
-      alert('El nombre no puede estar vacío');
+      toast.warning('El nombre no puede estar vacío', {
+        duration: 3000
+      });
       return;
     }
 
@@ -291,76 +353,80 @@ export default function GaleriaPage() {
         .update({ caption: editingCaption.trim() })
         .eq('id', photoId);
 
-      setPhotos(photos.map(p => 
-        p.id === photoId 
-          ? { ...p, caption: editingCaption.trim() }
-          : p
+      setPhotos(photos.map(photo =>
+        photo.id === photoId
+          ? { ...photo, caption: editingCaption.trim() }
+          : photo
       ));
 
       setEditingPhotoId(null);
       setEditingCaption('');
-      alert('✅ Nombre actualizado');
+
+      toast.success('Nombre actualizado correctamente', {
+        duration: 3000
+      });
+
     } catch (error) {
-      console.error('Error al actualizar nombre:', error);
-      alert('Error al actualizar el nombre');
+      logger.error('Error al actualizar nombre:', error);
+      toast.error('Error al actualizar el nombre', {
+        duration: 4000
+      });
     }
   };
 
-  const handleCancelEdit = () => {
-    setEditingPhotoId(null);
-    setEditingCaption('');
-  };
-
+  // Filtrado de fotos
   const filteredPhotos = photos.filter(photo => {
-    const matchSpace = selectedSpace === 'all' || 
-                      (selectedSpace === 'sin-espacio' && !photo.space_type) ||
-                      photo.space_type === selectedSpace;
-    
-    const matchSearch = !searchQuery || 
-                       photo.caption?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    return matchSpace && matchSearch;
+    const matchesSpace = selectedSpace === 'all' || photo.space_type === selectedSpace;
+    const matchesSearch = photo.caption?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false;
+    return matchesSpace && (searchQuery === '' || matchesSearch);
   });
 
   if (loading) {
-    return <Loading message="Cargando galería..." />;
+    return <Loading fullScreen />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ras-crema via-white to-ras-crema">
-      <TopBar 
-        title={`Galería - ${property?.nombre_propiedad || ''}`}
+    <div className="min-h-screen bg-gray-50">
+      <TopBar
+        title={`Galería - ${property?.nombre_propiedad || 'Propiedad'}`}
         showBackButton={true}
         showUserInfo={true}
         userEmail={user?.email}
         onLogout={handleLogout}
       />
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Estadísticas */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-3 mb-6">
-          <div className="flex items-center justify-between">
-            <label className="px-6 py-3 bg-gradient-to-r from-ras-azul to-ras-turquesa text-white rounded-xl cursor-pointer hover:shadow-xl transition-all font-semibold shadow-lg">
-              {isUploading ? 'Subiendo...' : 'Subir Fotos'}
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleFileSelect}
-                disabled={isUploading}
-                className="hidden"
-              />
-            </label>
+      <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+        {/* Header con botón subir fotos */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
             <div>
-              <h3 className="text-sm font-medium text-gray-600 mb-1">Total de Fotos</h3>
-              <p className="text-4xl font-bold text-ras-azul">{photos.length}</p>
+              <h2 className="text-2xl font-bold text-gray-800 font-poppins">
+                📸 Galería de Fotos
+              </h2>
+              <p className="text-gray-600 mt-1">
+                {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
+              </p>
             </div>
-          </div>
-        </div>
 
-        {/* Barra de búsqueda y filtros */}
-        <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-300 p-4 mb-6">
-          <div className="flex items-center gap-4">
+            {photos.length > 0 && (
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  disabled={isUploading}
+                  className="hidden"
+                />
+                <div className="px-6 py-3 bg-gradient-to-r from-ras-azul to-ras-turquesa text-white rounded-xl font-semibold hover:shadow-xl transition-all hover:scale-105 active:scale-95">
+                  {isUploading ? '⏳ Subiendo...' : '📸 Subir Fotos'}
+                </div>
+              </label>
+            )}
+          </div>
+
+          {/* Filtros */}
+          <div className="flex flex-col md:flex-row gap-4">
             {/* Buscador */}
             <div className="flex-1">
               <div className="relative">

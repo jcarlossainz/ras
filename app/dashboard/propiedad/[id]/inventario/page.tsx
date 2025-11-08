@@ -3,10 +3,10 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { supabase } from '@/Lib/supabase/client';
+import { supabase } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/components/ui/confirm-modal';
-import { logger } from '@/Lib/logger';
+import { logger } from '@/lib/logger';
 import TopBar from '@/components/ui/topbar';
 import Loading from '@/components/ui/loading';
 import EmptyState from '@/components/ui/emptystate';

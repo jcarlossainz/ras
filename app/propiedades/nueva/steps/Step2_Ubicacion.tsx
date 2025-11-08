@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { PropertyFormData } from '@/types/property';
+import { PropertyFormData, Ubicacion } from '@/types/property';
 import Input from '@/components/ui/input';
 import { getAddressFromGoogleMapsLink } from '@/lib/googleMaps/googleMaps';
 
@@ -29,13 +29,21 @@ const AMENIDADES_COMPLEJO = [
 
 export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+  
+  // Obtener ubicación actual o inicializar objeto vacío
+  const ubicacion = data.ubicacion || {};
 
-  const handleChange = (field: keyof PropertyFormData, value: any) => {
-    onUpdate({ [field]: value });
+  const handleUbicacionChange = (field: keyof Ubicacion, value: any) => {
+    onUpdate({
+      ubicacion: {
+        ...ubicacion,
+        [field]: value
+      }
+    });
   };
 
   const handleAutoFillAddress = async () => {
-    if (!data.google_maps_link) {
+    if (!ubicacion.google_maps_link) {
       alert('Por favor ingresa un link de Google Maps');
       return;
     }
@@ -43,17 +51,20 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
     setIsLoadingAddress(true);
 
     try {
-      const addressData = await getAddressFromGoogleMapsLink(data.google_maps_link);
+      const addressData = await getAddressFromGoogleMapsLink(ubicacion.google_maps_link);
 
       if (addressData) {
         // Actualizar todos los campos de dirección
         onUpdate({
-          calle: addressData.calle || data.calle,
-          colonia: addressData.colonia || data.colonia,
-          ciudad: addressData.ciudad || data.ciudad,
-          estado: addressData.estado || data.estado,
-          codigo_postal: addressData.codigo_postal || data.codigo_postal,
-          pais: addressData.pais || data.pais
+          ubicacion: {
+            ...ubicacion,
+            calle: addressData.calle || ubicacion.calle,
+            colonia: addressData.colonia || ubicacion.colonia,
+            ciudad: addressData.ciudad || ubicacion.ciudad,
+            estado: addressData.estado || ubicacion.estado,
+            codigo_postal: addressData.codigo_postal || ubicacion.codigo_postal,
+            pais: addressData.pais || ubicacion.pais
+          }
         });
         
         alert('✓ Dirección cargada exitosamente. Puedes modificar los campos si es necesario.');
@@ -69,11 +80,11 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
   };
 
   const toggleAmenidad = (amenidad: string) => {
-    const currentAmenidades = data.amenidades_complejo || [];
+    const currentAmenidades = ubicacion.amenidades_complejo || [];
     const newAmenidades = currentAmenidades.includes(amenidad)
       ? currentAmenidades.filter(a => a !== amenidad)
       : [...currentAmenidades, amenidad];
-    handleChange('amenidades_complejo', newAmenidades);
+    handleUbicacionChange('amenidades_complejo', newAmenidades);
   };
 
   return (
@@ -109,18 +120,18 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
             <div className="flex gap-2">
               <input
                 type="text"
-                value={data.google_maps_link || ''}
-                onChange={(e) => handleChange('google_maps_link', e.target.value)}
+                value={ubicacion.google_maps_link || ''}
+                onChange={(e) => handleUbicacionChange('google_maps_link', e.target.value)}
                 placeholder="Pega aquí el link de Google Maps"
                 className="flex-1 px-4 py-2.5 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul focus:border-transparent font-roboto"
               />
               <button
                 type="button"
                 onClick={handleAutoFillAddress}
-                disabled={isLoadingAddress || !data.google_maps_link}
+                disabled={isLoadingAddress || !ubicacion.google_maps_link}
                 className={`
                   px-4 py-2.5 rounded-lg font-semibold whitespace-nowrap transition-colors
-                  ${isLoadingAddress || !data.google_maps_link
+                  ${isLoadingAddress || !ubicacion.google_maps_link
                     ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                     : 'bg-ras-azul text-white hover:bg-ras-azul/90'
                   }
@@ -142,8 +153,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
               id="calle"
               label="Calle y número"
               type="text"
-              value={data.calle || ''}
-              onChange={(e) => handleChange('calle', e.target.value)}
+              value={ubicacion.calle || ''}
+              onChange={(e) => handleUbicacionChange('calle', e.target.value)}
               placeholder="Ej: Av. Bonampak 123"
             />
           </div>
@@ -154,8 +165,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
               id="colonia"
               label="Colonia"
               type="text"
-              value={data.colonia || ''}
-              onChange={(e) => handleChange('colonia', e.target.value)}
+              value={ubicacion.colonia || ''}
+              onChange={(e) => handleUbicacionChange('colonia', e.target.value)}
               placeholder="Ej: Supermanzana 15"
             />
           </div>
@@ -166,8 +177,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
               id="codigo_postal"
               label="Código Postal"
               type="text"
-              value={data.codigo_postal || ''}
-              onChange={(e) => handleChange('codigo_postal', e.target.value)}
+              value={ubicacion.codigo_postal || ''}
+              onChange={(e) => handleUbicacionChange('codigo_postal', e.target.value)}
               placeholder="Ej: 77500"
             />
           </div>
@@ -178,8 +189,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
               id="ciudad"
               label="Ciudad"
               type="text"
-              value={data.ciudad || ''}
-              onChange={(e) => handleChange('ciudad', e.target.value)}
+              value={ubicacion.ciudad || ''}
+              onChange={(e) => handleUbicacionChange('ciudad', e.target.value)}
               placeholder="Ej: Cancún"
             />
           </div>
@@ -190,8 +201,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
               id="estado"
               label="Estado"
               type="text"
-              value={data.estado || ''}
-              onChange={(e) => handleChange('estado', e.target.value)}
+              value={ubicacion.estado || ''}
+              onChange={(e) => handleUbicacionChange('estado', e.target.value)}
               placeholder="Ej: Quintana Roo"
             />
           </div>
@@ -202,8 +213,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
               id="pais"
               label="País"
               type="text"
-              value={data.pais || ''}
-              onChange={(e) => handleChange('pais', e.target.value)}
+              value={ubicacion.pais || ''}
+              onChange={(e) => handleUbicacionChange('pais', e.target.value)}
               placeholder="Ej: México"
             />
           </div>
@@ -214,8 +225,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
               Referencias adicionales
             </label>
             <textarea
-              value={data.referencias || ''}
-              onChange={(e) => handleChange('referencias', e.target.value)}
+              value={ubicacion.referencias || ''}
+              onChange={(e) => handleUbicacionChange('referencias', e.target.value)}
               placeholder="Ej: Entre Av. Tulum y Av. Sayil, edificio color azul con portón negro"
               rows={3}
               className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul focus:border-transparent font-roboto resize-none"
@@ -243,16 +254,16 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
             {/* Toggle Switch */}
             <button
               type="button"
-              onClick={() => handleChange('es_complejo', !data.es_complejo)}
+              onClick={() => handleUbicacionChange('es_complejo', !ubicacion.es_complejo)}
               className={`
                 relative inline-flex h-7 w-14 items-center rounded-full transition-colors
-                ${data.es_complejo ? 'bg-ras-azul' : 'bg-gray-300'}
+                ${ubicacion.es_complejo ? 'bg-ras-azul' : 'bg-gray-300'}
               `}
             >
               <span
                 className={`
                   inline-block h-5 w-5 transform rounded-full bg-white transition-transform
-                  ${data.es_complejo ? 'translate-x-8' : 'translate-x-1'}
+                  ${ubicacion.es_complejo ? 'translate-x-8' : 'translate-x-1'}
                 `}
               />
             </button>
@@ -264,7 +275,7 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
         </div>
 
         {/* Campos adicionales si pertenece a complejo */}
-        {data.es_complejo && (
+        {ubicacion.es_complejo && (
           <div className="space-y-6">
             {/* Nombre del complejo */}
             <div>
@@ -272,8 +283,8 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
                 id="nombre_complejo"
                 label="Nombre del complejo o condominio"
                 type="text"
-                value={data.nombre_complejo || ''}
-                onChange={(e) => handleChange('nombre_complejo', e.target.value)}
+                value={ubicacion.nombre_complejo || ''}
+                onChange={(e) => handleUbicacionChange('nombre_complejo', e.target.value)}
                 placeholder="Ej: Torres Laguna"
               />
             </div>
@@ -289,7 +300,7 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
                     key={amenidad}
                     className={`
                       flex items-center gap-2 px-3 py-2.5 rounded-lg border-2 cursor-pointer transition-all
-                      ${(data.amenidades_complejo || []).includes(amenidad)
+                      ${(ubicacion.amenidades_complejo || []).includes(amenidad)
                         ? 'border-ras-azul bg-ras-azul/5 text-ras-azul'
                         : 'border-gray-200 hover:border-gray-300 text-gray-700'
                       }
@@ -297,7 +308,7 @@ export default function Step2_Ubicacion({ data, onUpdate }: Step2Props) {
                   >
                     <input
                       type="checkbox"
-                      checked={(data.amenidades_complejo || []).includes(amenidad)}
+                      checked={(ubicacion.amenidades_complejo || []).includes(amenidad)}
                       onChange={() => toggleAmenidad(amenidad)}
                       className="rounded text-ras-azul focus:ring-ras-azul"
                     />
