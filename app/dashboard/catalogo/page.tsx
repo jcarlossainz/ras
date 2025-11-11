@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/useToast'
 import { useConfirm } from '@/components/ui/confirm-modal'
 import { logger } from '@/lib/logger'
-import WizardModal from './components/WizardModal'
+import WizardModal from './nueva/components/WizardModal'
 import CompartirPropiedad from '@/components/CompartirPropiedad'
 import TopBar from '@/components/ui/topbar'
 import Loading from '@/components/ui/loading'
@@ -527,6 +527,18 @@ export default function CatalogoPage() {
         showUserInfo={true}
         userEmail={user?.email}
         onLogout={handleLogout}
+        dropdownItems={[
+          {
+            label: 'Agregar propiedad',
+            icon: (
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            ),
+            onClick: () => setShowWizard(true)
+          }
+        ]}
       />
 
       <main className="max-w-5xl mx-auto px-4 py-8">

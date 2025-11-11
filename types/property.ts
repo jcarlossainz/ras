@@ -597,3 +597,18 @@ export const INITIAL_PROPERTY_DATA: PropertyFormData = {
   // Metadata
   is_draft: true
 };
+
+export interface Service {
+  id: string;
+  type: string;
+  name: string;
+  provider: string;
+  accountNumber: string;
+  cost: number;
+  montoTipo: 'fijo' | 'variable'; // ✨ NUEVO - Tipo de monto
+  frecuenciaCantidad: number; // ✨ NUEVO - Cantidad (ej: 1, 2, 3)
+  frecuenciaUnidad: 'dia' | 'mes' | 'año'; // ✨ NUEVO - Unidad de tiempo
+  paymentFrequency: 'mensual' | 'bimestral' | 'trimestral' | 'semestral' | 'anual' | 'unico'; // Mantener por compatibilidad
+  lastPaymentDate: string; // ✨ CORREGIDO - Fecha del último pago (formato YYYY-MM-DD)
+  notes: string;
+}

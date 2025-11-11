@@ -395,7 +395,7 @@ export default function GaleriaPage() {
         onLogout={handleLogout}
       />
 
-      <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+      <main className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
         {/* Header con botón subir fotos */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-6">

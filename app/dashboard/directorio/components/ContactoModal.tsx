@@ -11,7 +11,8 @@ interface ContactoModalProps {
     nombre: string
     telefono: string
     correo: string
-    tipo: 'inquilino' | 'proveedor'
+    tipo: 'inquilino' | 'propietario' | 'proveedor' | 'supervisor'
+    provider_category?: string
   } | null
 }
 
@@ -19,7 +20,8 @@ interface ContactoFormData {
   nombre: string
   telefono: string
   correo: string
-  tipo: 'inquilino' | 'proveedor'
+  tipo: 'inquilino' | 'propietario' | 'proveedor' | 'supervisor'
+  provider_category?: string
 }
 
 export default function ContactoModal({ isOpen, onClose, onSave, contacto }: ContactoModalProps) {
@@ -27,7 +29,8 @@ export default function ContactoModal({ isOpen, onClose, onSave, contacto }: Con
     nombre: '',
     telefono: '',
     correo: '',
-    tipo: 'inquilino'
+    tipo: 'inquilino',
+    provider_category: ''
   })
 
   const [errors, setErrors] = useState<Partial<ContactoFormData>>({})
@@ -39,14 +42,16 @@ export default function ContactoModal({ isOpen, onClose, onSave, contacto }: Con
         nombre: contacto.nombre,
         telefono: contacto.telefono,
         correo: contacto.correo,
-        tipo: contacto.tipo
+        tipo: contacto.tipo,
+        provider_category: contacto.provider_category || ''
       })
     } else {
       setFormData({
         nombre: '',
         telefono: '',
         correo: '',
-        tipo: 'inquilino'
+        tipo: 'inquilino',
+        provider_category: ''
       })
     }
     setErrors({})
@@ -71,6 +76,11 @@ export default function ContactoModal({ isOpen, onClose, onSave, contacto }: Con
       newErrors.correo = 'Formato de correo inválido'
     }
 
+    // Validar categoría de proveedor si el tipo es proveedor
+    if (formData.tipo === 'proveedor' && !formData.provider_category?.trim()) {
+      newErrors.provider_category = 'La categoría es requerida para proveedores'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -79,12 +89,35 @@ export default function ContactoModal({ isOpen, onClose, onSave, contacto }: Con
     e.preventDefault()
     
     if (validateForm()) {
-      onSave(formData)
+      // Preparar datos en el formato correcto
+      const dataToSave: ContactoFormData = {
+        nombre: formData.nombre.trim(),
+        telefono: formData.telefono.trim(),
+        correo: formData.correo.trim(),
+        tipo: formData.tipo
+      }
+
+      // Solo incluir provider_category si es proveedor
+      if (formData.tipo === 'proveedor' && formData.provider_category) {
+        dataToSave.provider_category = formData.provider_category
+      }
+
+      onSave(dataToSave)
     }
   }
 
   const handleChange = (field: keyof ContactoFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value }
+      
+      // Si cambia el tipo y no es proveedor, limpiar provider_category
+      if (field === 'tipo' && value !== 'proveedor') {
+        newData.provider_category = ''
+      }
+      
+      return newData
+    })
+    
     // Limpiar error del campo cuando el usuario empiece a escribir
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: undefined }))
@@ -121,7 +154,7 @@ export default function ContactoModal({ isOpen, onClose, onSave, contacto }: Con
             </label>
             <select
               value={formData.tipo}
-              onChange={(e) => handleChange('tipo', e.target.value as 'inquilino' | 'proveedor')}
+              onChange={(e) => handleChange('tipo', e.target.value as ContactoFormData['tipo'])}
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-rose-400 transition-colors font-medium"
             >
               <option value="inquilino">Inquilino</option>
@@ -135,16 +168,31 @@ export default function ContactoModal({ isOpen, onClose, onSave, contacto }: Con
           {formData.tipo === 'proveedor' && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Categoría del proveedor
+                Categoría del proveedor *
               </label>
               <select
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-rose-400 transition-colors font-medium"
+                value={formData.provider_category || ''}
+                onChange={(e) => handleChange('provider_category', e.target.value)}
+                className={`w-full px-4 py-3 rounded-xl border-2 focus:outline-none transition-colors font-medium ${
+                  errors.provider_category
+                    ? 'border-red-300 focus:border-red-500'
+                    : 'border-gray-200 focus:border-rose-400'
+                }`}
               >
                 <option value="">Seleccionar categoría</option>
                 <option value="limpieza">Limpieza</option>
                 <option value="mantenimiento">Mantenimiento</option>
                 <option value="servicio">Servicio</option>
+                <option value="jardineria">Jardinería</option>
+                <option value="seguridad">Seguridad</option>
+                <option value="plomeria">Plomería</option>
+                <option value="electricidad">Electricidad</option>
+                <option value="pintura">Pintura</option>
+                <option value="otro">Otro</option>
               </select>
+              {errors.provider_category && (
+                <p className="mt-1 text-sm text-red-600">{errors.provider_category}</p>
+              )}
             </div>
           )}
 

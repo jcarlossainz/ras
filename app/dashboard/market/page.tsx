@@ -55,11 +55,18 @@ export default function MarketPage() {
 
   const cargarPropiedades = async (userId: string) => {
     // Cargar propiedades propias
-    const { data: propiedadesPropias } = await supabase
+    const { data: propiedadesPropias, error: errorPropias } = await supabase
       .from('propiedades')
-      .select('id, user_id, nombre, tipo_propiedad, estados, codigo_postal, costo_renta_mensual, precio_noche, precio_venta, estado_anuncio, created_at')
+      .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
+    
+    if (errorPropias) {
+      console.error('Error cargando propiedades propias:', errorPropias)
+      toast.error('Error al cargar propiedades')
+      setPropiedades([])
+      return
+    }
     
     // Cargar propiedades compartidas
     const { data: propiedadesCompartidas } = await supabase
@@ -72,7 +79,7 @@ export default function MarketPage() {
       const idsCompartidos = propiedadesCompartidas.map(p => p.propiedad_id)
       const { data: datosCompartidos } = await supabase
         .from('propiedades')
-        .select('id, user_id, nombre, tipo_propiedad, estados, codigo_postal, costo_renta_mensual, precio_noche, precio_venta, estado_anuncio, created_at')
+        .select('*')
         .in('id', idsCompartidos)
       propiedadesCompartidasData = datosCompartidos || []
     }
@@ -190,35 +197,29 @@ export default function MarketPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-8">
 
-        {/* Filtros y búsqueda - MANTENIDA ORIGINAL */}
-        <div className="bg-white rounded-2xl shadow-lg border-2 border-gray-200 p-5 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Filtros y búsqueda */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 mb-6">
+          <div className="flex gap-3 items-center">
             
             {/* Búsqueda */}
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                🔍 Buscar propiedad
-              </label>
+            <div className="flex-1">
               <input
                 type="text"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Nombre o código postal..."
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none"
+                placeholder="🔍 Buscar propiedad..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-ras-turquesa focus:outline-none focus:ring-2 focus:ring-ras-turquesa"
               />
             </div>
 
             {/* Filtro Estado */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estado
-              </label>
               <select
                 value={filtroEstado}
                 onChange={(e) => setFiltroEstado(e.target.value as any)}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-ras-turquesa focus:outline-none focus:ring-2 focus:ring-ras-turquesa"
               >
-                <option value="todos">Todos</option>
+                <option value="todos">Estado</option>
                 <option value="publicado">Publicados</option>
                 <option value="pausado">Pausados</option>
                 <option value="borrador">Borradores</option>
@@ -227,15 +228,12 @@ export default function MarketPage() {
 
             {/* Filtro Operación */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Operación
-              </label>
               <select
                 value={filtroOperacion}
                 onChange={(e) => setFiltroOperacion(e.target.value as any)}
-                className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-400 focus:outline-none"
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-ras-turquesa focus:outline-none focus:ring-2 focus:ring-ras-turquesa"
               >
-                <option value="todos">Todas</option>
+                <option value="todos">Operación</option>
                 <option value="venta">Venta</option>
                 <option value="renta">Renta</option>
                 <option value="vacacional">Vacacional</option>

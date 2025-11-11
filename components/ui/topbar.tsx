@@ -10,6 +10,8 @@ interface TopBarProps {
   showUserInfo?: boolean
   userEmail?: string
   onLogout?: () => void
+  onBackClick?: () => void
+  onNuevoTicket?: () => void // Nueva prop para abrir modal de tickets
 }
 
 export default function TopBar({ 
@@ -18,7 +20,9 @@ export default function TopBar({
   showAddButton = false,
   showUserInfo = false,
   userEmail,
-  onLogout 
+  onLogout,
+  onBackClick,
+  onNuevoTicket
 }: TopBarProps) {
   const router = useRouter()
   const [showDropdown, setShowDropdown] = useState(false)
@@ -29,6 +33,14 @@ export default function TopBar({
     day: '2-digit' 
   })
 
+  const handleBack = () => {
+    if (onBackClick) {
+      onBackClick()
+    } else {
+      router.back()
+    }
+  }
+
   return (
     <>
       <div className="sticky top-0 z-50 bg-gradient-to-b from-ras-azul/95 to-ras-turquesa/50 backdrop-blur-md border-b border-white/10 shadow-lg">
@@ -37,7 +49,7 @@ export default function TopBar({
           {/* Botón Atrás */}
           {showBackButton && (
             <button 
-              onClick={() => router.back()} 
+              onClick={handleBack} 
               className="w-11 h-11 rounded-full border-2 border-white/30 bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all hover:scale-110"
               aria-label="Volver"
             >
@@ -62,46 +74,49 @@ export default function TopBar({
 
               {/* Dropdown */}
               {showDropdown && (
-                <div className="absolute top-14 left-0 w-56 bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 z-50">
+                <div className="absolute top-14 left-0 w-60 bg-white rounded-2xl shadow-2xl border border-gray-200 p-2 z-50">
+                  {/* Agregar Propiedad */}
                   <button 
                     onClick={() => {
                       setShowDropdown(false)
-                      // Navegar a catálogo y disparar evento para abrir wizard
                       router.push('/dashboard/catalogo')
                       setTimeout(() => {
                         window.dispatchEvent(new CustomEvent('openWizard'))
                       }, 100)
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-red-50 transition-colors text-left group"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center group-hover:scale-110 transition-transform">
                       <svg className="w-5 h-5 text-red-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M3 11.5 12 4l9 7.5M5 10.5V20h14v-9.5" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
                     </div>
-                    <span className="font-medium text-gray-800">Agregar propiedad</span>
+                    <div>
+                      <div className="font-semibold text-gray-800">Agregar propiedad</div>
+                      <div className="text-xs text-gray-500">Registrar nueva propiedad</div>
+                    </div>
                   </button>
 
-                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-orange-50 transition-colors text-left">
-                    <div className="w-10 h-10 rounded-lg bg-orange-100 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-orange-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="4" y="3" width="14" height="18" rx="2"/>
-                        <path d="M19 7h2M19 12h2M19 17h2" strokeLinecap="round"/>
-                        <circle cx="11" cy="9" r="2"/>
-                      </svg>
-                    </div>
-                    <span className="font-medium text-gray-800">Agregar contacto</span>
-                  </button>
-
-                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-green-50 transition-colors text-left">
-                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                      </svg>
-                    </div>
-                    <span className="font-medium text-gray-800">Nuevo ticket</span>
-                  </button>
+                  {/* Nuevo Ticket */}
+                  {onNuevoTicket && (
+                    <button 
+                      onClick={() => {
+                        setShowDropdown(false)
+                        onNuevoTicket()
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-blue-50 transition-colors text-left group"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <svg className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-gray-800">Nuevo ticket</div>
+                        <div className="text-xs text-gray-500">Crear ticket manual</div>
+                      </div>
+                    </button>
+                  )}
                 </div>
               )}
             </div>

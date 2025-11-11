@@ -15,7 +15,7 @@
 import { useEffect, useState } from 'react';
 import { useConfirm } from '@/components/ui/confirm-modal';
 import { logger } from '@/lib/logger';
-import WizardContainer from '../../../propiedades/nueva/components/WizardContainer';
+import WizardContainer from '@/app/dashboard/catalogo/nueva/components/WizardContainer';
 import { PropertyFormData } from '@/types/property';
 
 interface WizardModalProps {

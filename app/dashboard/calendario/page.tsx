@@ -1,9 +1,14 @@
 'use client'
 
 /**
- * CALENDARIO - Vista Consolidada
- * Vista de calendario mensual con todos los pagos de todas las propiedades
- * Dashboard global de calendario del sistema RAS
+ * CALENDARIO - Vista Consolidada con Múltiples Vistas y Filtros Multi-Selección
+ * ==============================================================================
+ * 
+ * CARACTERÍSTICAS:
+ * ✅ 3 vistas: Calendario, Semana, Listado
+ * ✅ Filtros multi-selección: Por propietario(s) y por propiedad(es)
+ * ✅ Diseño compacto y profesional
+ * ✅ Colores RAS
  */
 
 import { useEffect, useState } from 'react'
@@ -21,6 +26,8 @@ interface Pago {
   tipo_servicio: string
   propiedad_id: string
   propiedad_nombre: string
+  propietario_id: string
+  propietario_nombre: string
 }
 
 interface DiaCalendario {
@@ -32,6 +39,19 @@ interface DiaCalendario {
   montoTotal: number
 }
 
+interface Propiedad {
+  id: string
+  nombre: string
+  user_id: string
+}
+
+interface Propietario {
+  id: string
+  nombre: string
+}
+
+type VistaCalendario = 'calendario' | 'semana' | 'listado'
+
 export default function CalendarioGlobalPage() {
   const router = useRouter()
   const toast = useToast()
@@ -39,9 +59,19 @@ export default function CalendarioGlobalPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [pagos, setPagos] = useState<Pago[]>([])
+  const [pagosFiltrados, setPagosFiltrados] = useState<Pago[]>([])
   const [mesActual, setMesActual] = useState(new Date())
   const [diasCalendario, setDiasCalendario] = useState<DiaCalendario[]>([])
   const [pagoSeleccionado, setPagoSeleccionado] = useState<Pago | null>(null)
+  
+  // Estados para vistas y filtros MULTI-SELECCIÓN
+  const [vista, setVista] = useState<VistaCalendario>('calendario')
+  const [propiedades, setPropiedades] = useState<Propiedad[]>([])
+  const [propietarios, setPropietarios] = useState<Propietario[]>([])
+  const [propiedadFiltro, setPropiedadFiltro] = useState<string[]>([])
+  const [propietarioFiltro, setPropietarioFiltro] = useState<string[]>([])
+  const [showPropietarioDropdown, setShowPropietarioDropdown] = useState(false)
+  const [showPropiedadDropdown, setShowPropiedadDropdown] = useState(false)
 
   useEffect(() => {
     checkUser()
@@ -49,9 +79,15 @@ export default function CalendarioGlobalPage() {
 
   useEffect(() => {
     if (pagos.length > 0) {
+      aplicarFiltros()
+    }
+  }, [pagos, propiedadFiltro, propietarioFiltro])
+
+  useEffect(() => {
+    if (pagosFiltrados.length >= 0) {
       generarCalendario()
     }
-  }, [mesActual, pagos])
+  }, [mesActual, pagosFiltrados])
 
   const checkUser = async () => {
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -75,7 +111,7 @@ export default function CalendarioGlobalPage() {
       // Cargar propiedades
       const { data: propsPropias } = await supabase
         .from('propiedades')
-        .select('id, nombre')
+        .select('id, nombre, user_id')
         .eq('user_id', userId)
 
       const { data: propsCompartidas } = await supabase
@@ -88,7 +124,7 @@ export default function CalendarioGlobalPage() {
         const ids = propsCompartidas.map(p => p.propiedad_id)
         const { data } = await supabase
           .from('propiedades')
-          .select('id, nombre')
+          .select('id, nombre, user_id')
           .in('id', ids)
         propsCompartidasData = data || []
       }
@@ -97,6 +133,22 @@ export default function CalendarioGlobalPage() {
         ...(propsPropias || []),
         ...propsCompartidasData
       ]
+
+      setPropiedades(todasPropiedades)
+
+      // Obtener propietarios únicos
+      const userIds = [...new Set(todasPropiedades.map(p => p.user_id))]
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds)
+
+      const propietariosUnicos = (profilesData || []).map(p => ({
+        id: p.id,
+        nombre: p.full_name || p.email.split('@')[0]
+      }))
+
+      setPropietarios(propietariosUnicos)
 
       if (todasPropiedades.length === 0) {
         setPagos([])
@@ -134,6 +186,7 @@ export default function CalendarioGlobalPage() {
 
       const pagosTransformados = (pagosData || []).map(pago => {
         const propiedad = todasPropiedades.find(p => p.id === pago.propiedad_id)
+        const propietario = propietariosUnicos.find(p => p.id === propiedad?.user_id)
         return {
           id: pago.id,
           fecha_pago: pago.fecha_pago,
@@ -141,7 +194,9 @@ export default function CalendarioGlobalPage() {
           servicio_nombre: pago.servicios_inmueble.nombre,
           tipo_servicio: pago.servicios_inmueble.tipo_servicio,
           propiedad_id: pago.propiedad_id,
-          propiedad_nombre: propiedad?.nombre || 'Sin nombre'
+          propiedad_nombre: propiedad?.nombre || 'Sin nombre',
+          propietario_id: propiedad?.user_id || '',
+          propietario_nombre: propietario?.nombre || 'Desconocido'
         }
       })
 
@@ -153,23 +208,50 @@ export default function CalendarioGlobalPage() {
     }
   }
 
+  const aplicarFiltros = () => {
+    let pagosFiltrados = [...pagos]
+
+    if (propietarioFiltro.length > 0) {
+      pagosFiltrados = pagosFiltrados.filter(p => propietarioFiltro.includes(p.propietario_id))
+    }
+
+    if (propiedadFiltro.length > 0) {
+      pagosFiltrados = pagosFiltrados.filter(p => propiedadFiltro.includes(p.propiedad_id))
+    }
+
+    setPagosFiltrados(pagosFiltrados)
+  }
+
+  const togglePropietario = (id: string) => {
+    if (propietarioFiltro.includes(id)) {
+      setPropietarioFiltro(propietarioFiltro.filter(p => p !== id))
+    } else {
+      setPropietarioFiltro([...propietarioFiltro, id])
+    }
+  }
+
+  const togglePropiedad = (id: string) => {
+    if (propiedadFiltro.includes(id)) {
+      setPropiedadFiltro(propiedadFiltro.filter(p => p !== id))
+    } else {
+      setPropiedadFiltro([...propiedadFiltro, id])
+    }
+  }
+
+  const limpiarFiltros = () => {
+    setPropietarioFiltro([])
+    setPropiedadFiltro([])
+  }
+
   const generarCalendario = () => {
     const año = mesActual.getFullYear()
     const mes = mesActual.getMonth()
     
-    // Primer día del mes
     const primerDia = new Date(año, mes, 1)
-    const diaSemana = primerDia.getDay() // 0 = domingo
-    
-    // Último día del mes
-    const ultimoDia = new Date(año, mes + 1, 0)
-    const diasEnMes = ultimoDia.getDate()
-    
-    // Días del mes anterior para completar la primera semana
+    const diaSemana = primerDia.getDay()
     const diasMesAnterior = diaSemana === 0 ? 6 : diaSemana - 1
     const primerDiaVisible = new Date(año, mes, 1 - diasMesAnterior)
     
-    // Generar 42 días (6 semanas)
     const dias: DiaCalendario[] = []
     const hoy = new Date()
     hoy.setHours(0, 0, 0, 0)
@@ -181,8 +263,7 @@ export default function CalendarioGlobalPage() {
       const esMesActual = fecha.getMonth() === mes
       const esHoy = fecha.getTime() === hoy.getTime()
       
-      // Filtrar pagos de este día
-      const pagosDelDia = pagos.filter(pago => {
+      const pagosDelDia = pagosFiltrados.filter(pago => {
         const fechaPago = new Date(pago.fecha_pago)
         return fechaPago.getDate() === fecha.getDate() &&
                fechaPago.getMonth() === fecha.getMonth() &&
@@ -211,21 +292,41 @@ export default function CalendarioGlobalPage() {
   }
 
   const getTipoIcon = (tipo: string) => {
-    const iconos: { [key: string]: string } = {
-      agua: '💧',
-      gas: '🔥',
-      luz: '💡',
-      internet: '📡',
-      predial: '🏛️',
-      cuota_condominio: '🏘️',
-      mantenimiento_alberca: '🏊',
-      cctv: '📹',
-      seguro: '🛡️',
-      fumigacion: '🐛',
-      mantenimiento_aires: '❄️',
-      impermeabilizacion: '☔'
+    const iconos: { [key: string]: JSX.Element } = {
+      agua: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      luz: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      gas: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      internet: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" strokeLinecap="round"/>
+        </svg>
+      ),
+      mantenimiento: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ),
+      seguridad: (
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
     }
-    return iconos[tipo] || '📋'
+    
+    return iconos[tipo] || iconos.mantenimiento
   }
 
   const nombreMes = mesActual.toLocaleDateString('es-MX', { 
@@ -233,11 +334,25 @@ export default function CalendarioGlobalPage() {
     year: 'numeric' 
   })
 
-  const estadisticasMes = {
-    totalPagos: diasCalendario.reduce((sum, dia) => sum + dia.pagos.length, 0),
-    montoTotal: diasCalendario.reduce((sum, dia) => sum + dia.montoTotal, 0),
-    diasConPagos: diasCalendario.filter(dia => dia.pagos.length > 0 && dia.esMesActual).length
+  // Obtener pagos de la semana actual
+  const obtenerPagosSemanaActual = () => {
+    const hoy = new Date()
+    const diaSemana = hoy.getDay()
+    const lunes = new Date(hoy)
+    lunes.setDate(hoy.getDate() - (diaSemana === 0 ? 6 : diaSemana - 1))
+    lunes.setHours(0, 0, 0, 0)
+    
+    const domingo = new Date(lunes)
+    domingo.setDate(lunes.getDate() + 6)
+    domingo.setHours(23, 59, 59, 999)
+    
+    return pagosFiltrados.filter(pago => {
+      const fecha = new Date(pago.fecha_pago)
+      return fecha >= lunes && fecha <= domingo
+    })
   }
+
+  const pagosSemana = obtenerPagosSemanaActual()
 
   if (loading) {
     return <Loading message="Cargando calendario..." />
@@ -246,194 +361,470 @@ export default function CalendarioGlobalPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-ras-crema via-white to-ras-crema">
       <TopBar
-        title="📅 Calendario"
+        title="Calendario de Pagos"
         showBackButton
         onBackClick={() => router.push('/dashboard')}
       />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-5 py-5">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         
-        {/* Header con navegación de mes */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8 border-2 border-gray-200">
-          <div className="flex items-center justify-between mb-6">
-            <button
-              onClick={() => cambiarMes(-1)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-all"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-            </button>
-
-            <h2 className="text-2xl font-bold text-gray-800 capitalize">
-              {nombreMes}
-            </h2>
-
-            <button
-              onClick={() => cambiarMes(1)}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-all"
-            >
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Estadísticas del mes */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <div className="text-2xl font-bold text-blue-600">{estadisticasMes.totalPagos}</div>
-              <div className="text-xs text-gray-600">Pagos programados</div>
-            </div>
-            <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-              <div className="text-2xl font-bold text-purple-600">
-                ${(estadisticasMes.montoTotal / 1000).toFixed(1)}K
-              </div>
-              <div className="text-xs text-gray-600">Monto total</div>
-            </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
-              <div className="text-2xl font-bold text-green-600">{estadisticasMes.diasConPagos}</div>
-              <div className="text-xs text-gray-600">Días con pagos</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Calendario */}
-        <div className="bg-white rounded-xl shadow-lg p-6 border-2 border-gray-200">
-          {/* Días de la semana */}
-          <div className="grid grid-cols-7 gap-2 mb-4">
-            {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(dia => (
-              <div key={dia} className="text-center font-bold text-gray-600 text-sm py-2">
-                {dia}
-              </div>
-            ))}
-          </div>
-
-          {/* Días del mes */}
-          <div className="grid grid-cols-7 gap-2">
-            {diasCalendario.map((dia, index) => {
-              const colorDia = dia.esHoy 
-                ? 'bg-orange-500 text-white' 
-                : dia.esMesActual 
-                ? 'bg-gray-100 text-gray-800' 
-                : 'bg-gray-50 text-gray-400'
-
-              const tienePagos = dia.pagos.length > 0
-
-              return (
-                <div
-                  key={index}
-                  className={`min-h-[100px] p-2 rounded-lg border-2 transition-all ${
-                    dia.esMesActual ? 'border-gray-200' : 'border-gray-100'
-                  } ${tienePagos && dia.esMesActual ? 'hover:border-orange-400 cursor-pointer hover:shadow-md' : ''}`}
-                >
-                  <div className={`text-center text-sm font-bold mb-1 w-7 h-7 rounded-full flex items-center justify-center mx-auto ${colorDia}`}>
-                    {dia.dia}
-                  </div>
-
-                  {tienePagos && dia.esMesActual && (
-                    <div className="space-y-1">
-                      {dia.pagos.slice(0, 2).map(pago => (
-                        <div
-                          key={pago.id}
-                          onClick={() => setPagoSeleccionado(pago)}
-                          className="text-xs p-1 bg-blue-50 rounded border border-blue-200 hover:bg-blue-100 transition-all"
-                        >
-                          <div className="flex items-center gap-1">
-                            <span>{getTipoIcon(pago.tipo_servicio)}</span>
-                            <span className="truncate flex-1 font-medium">
-                              {pago.servicio_nombre}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-gray-600 truncate">
-                            {pago.propiedad_nombre}
-                          </div>
-                        </div>
-                      ))}
-                      {dia.pagos.length > 2 && (
-                        <div className="text-[10px] text-center text-gray-500 font-semibold">
-                          +{dia.pagos.length - 2} más
-                        </div>
-                      )}
-                      <div className="text-[10px] text-center font-bold text-gray-700 mt-1">
-                        ${(dia.montoTotal / 1000).toFixed(1)}K
-                      </div>
-                    </div>
-                  )}
-
-                  {tienePagos && !dia.esMesActual && (
-                    <div className="flex justify-center">
-                      <span className="text-xs text-gray-400">{dia.pagos.length}📋</span>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Modal de detalle de pago */}
-        {pagoSeleccionado && (
-          <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setPagoSeleccionado(null)}
-          >
-            <div 
-              className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-2xl">
-                    {getTipoIcon(pagoSeleccionado.tipo_servicio)}
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-800">
-                      {pagoSeleccionado.servicio_nombre}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {pagoSeleccionado.propiedad_nombre}
-                    </p>
-                  </div>
-                </div>
+        {/* Controles: Vistas + Filtros */}
+        <div className="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-200">
+          <div className="flex flex-col lg:flex-row gap-4">
+            
+            {/* Selector de Vista */}
+            <div className="flex-1">
+              <label className="block text-xs font-semibold text-gray-600 mb-2 font-poppins">
+                Vista
+              </label>
+              <div className="flex gap-2">
                 <button
-                  onClick={() => setPagoSeleccionado(null)}
-                  className="text-gray-400 hover:text-gray-600"
+                  onClick={() => setVista('calendario')}
+                  className={`flex-1 py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
+                    vista === 'calendario'
+                      ? 'bg-gradient-to-r from-ras-azul to-ras-turquesa text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
                 >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg className="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  Mes
+                </button>
+                <button
+                  onClick={() => setVista('semana')}
+                  className={`flex-1 py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
+                    vista === 'semana'
+                      ? 'bg-gradient-to-r from-ras-azul to-ras-turquesa text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <svg className="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 9h18M3 15h18M9 3v18M15 3v18" strokeLinecap="round"/>
+                  </svg>
+                  Semana
+                </button>
+                <button
+                  onClick={() => setVista('listado')}
+                  className={`flex-1 py-2 px-3 rounded-lg font-semibold text-sm transition-all ${
+                    vista === 'listado'
+                      ? 'bg-gradient-to-r from-ras-azul to-ras-turquesa text-white shadow-md'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <svg className="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <line x1="8" y1="6" x2="21" y2="6"/>
+                    <line x1="8" y1="12" x2="21" y2="12"/>
+                    <line x1="8" y1="18" x2="21" y2="18"/>
+                    <line x1="3" y1="6" x2="3.01" y2="6"/>
+                    <line x1="3" y1="12" x2="3.01" y2="12"/>
+                    <line x1="3" y1="18" x2="3.01" y2="18"/>
+                  </svg>
+                  Lista
+                </button>
+              </div>
+            </div>
+
+            {/* Filtro por Propietario - MULTI-SELECCIÓN */}
+            <div className="flex-1 relative">
+              <label className="block text-xs font-semibold text-gray-600 mb-2 font-poppins">
+                Propietario {propietarioFiltro.length > 0 && (
+                  <span className="text-ras-turquesa">({propietarioFiltro.length})</span>
+                )}
+              </label>
+              <button
+                onClick={() => {
+                  setShowPropietarioDropdown(!showPropietarioDropdown)
+                  setShowPropiedadDropdown(false)
+                }}
+                className="w-full py-2 px-3 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ras-turquesa focus:border-transparent flex items-center justify-between"
+              >
+                <span className="truncate">
+                  {propietarioFiltro.length === 0 
+                    ? 'Seleccionar propietarios' 
+                    : `${propietarioFiltro.length} seleccionado${propietarioFiltro.length > 1 ? 's' : ''}`
+                  }
+                </span>
+                <svg className="w-4 h-4 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showPropietarioDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowPropietarioDropdown(false)}
+                  />
+                  <div className="absolute z-50 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 max-h-64 overflow-y-auto">
+                    {propietarios.map(prop => (
+                      <label
+                        key={prop.id}
+                        className="flex items-center px-4 py-2 hover:bg-ras-turquesa/5 cursor-pointer transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={propietarioFiltro.includes(prop.id)}
+                          onChange={() => togglePropietario(prop.id)}
+                          className="w-4 h-4 text-ras-turquesa border-gray-300 rounded focus:ring-ras-turquesa"
+                        />
+                        <span className="ml-3 text-sm text-gray-700">{prop.nombre}</span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Filtro por Propiedad - MULTI-SELECCIÓN */}
+            <div className="flex-1 relative">
+              <label className="block text-xs font-semibold text-gray-600 mb-2 font-poppins">
+                Propiedad {propiedadFiltro.length > 0 && (
+                  <span className="text-ras-turquesa">({propiedadFiltro.length})</span>
+                )}
+              </label>
+              <button
+                onClick={() => {
+                  setShowPropiedadDropdown(!showPropiedadDropdown)
+                  setShowPropietarioDropdown(false)
+                }}
+                className="w-full py-2 px-3 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-ras-turquesa focus:border-transparent flex items-center justify-between"
+              >
+                <span className="truncate">
+                  {propiedadFiltro.length === 0 
+                    ? 'Seleccionar propiedades' 
+                    : `${propiedadFiltro.length} seleccionada${propiedadFiltro.length > 1 ? 's' : ''}`
+                  }
+                </span>
+                <svg className="w-4 h-4 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showPropiedadDropdown && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowPropiedadDropdown(false)}
+                  />
+                  <div className="absolute z-50 mt-2 w-full bg-white rounded-lg shadow-xl border border-gray-200 max-h-64 overflow-y-auto">
+                    {propiedades
+                      .filter(prop => propietarioFiltro.length === 0 || propietarioFiltro.includes(prop.user_id))
+                      .map(prop => (
+                        <label
+                          key={prop.id}
+                          className="flex items-center px-4 py-2 hover:bg-ras-turquesa/5 cursor-pointer transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={propiedadFiltro.includes(prop.id)}
+                            onChange={() => togglePropiedad(prop.id)}
+                            className="w-4 h-4 text-ras-turquesa border-gray-300 rounded focus:ring-ras-turquesa"
+                          />
+                          <span className="ml-3 text-sm text-gray-700">{prop.nombre}</span>
+                        </label>
+                      ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Botón limpiar filtros */}
+            {(propietarioFiltro.length > 0 || propiedadFiltro.length > 0) && (
+              <div className="flex items-end">
+                <button
+                  onClick={limpiarFiltros}
+                  className="py-2 px-4 rounded-lg border-2 border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-ras-turquesa transition-all"
+                  title="Limpiar todos los filtros"
+                >
+                  <svg className="w-4 h-4 inline mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Limpiar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* VISTA CALENDARIO */}
+        {vista === 'calendario' && (
+          <>
+            <div className="bg-white rounded-xl shadow-md p-4 mb-6 border border-gray-200">
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  onClick={() => cambiarMes(-1)}
+                  className="p-2 rounded-lg hover:bg-ras-turquesa/10 text-ras-azul transition-all hover:scale-110"
+                  aria-label="Mes anterior"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <h2 className="text-xl font-bold text-ras-azul capitalize font-poppins">{nombreMes}</h2>
+                <button
+                  onClick={() => cambiarMes(1)}
+                  className="p-2 rounded-lg hover:bg-ras-turquesa/10 text-ras-azul transition-all hover:scale-110"
+                  aria-label="Mes siguiente"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
               </div>
+            </div>
 
+            <div className="bg-white rounded-xl shadow-md p-4 border border-gray-200">
+              <div className="grid grid-cols-7 gap-1.5 mb-3">
+                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(dia => (
+                  <div key={dia} className="text-center font-bold text-ras-azul text-xs py-1.5 font-poppins">
+                    {dia}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1.5">
+                {diasCalendario.map((dia, index) => {
+                  const tienePagos = dia.pagos.length > 0
+                  return (
+                    <div
+                      key={index}
+                      className={`min-h-[85px] p-1.5 rounded-lg border transition-all ${
+                        dia.esMesActual ? 'border-gray-200 bg-white' : 'border-gray-100 bg-gray-50/50'
+                      } ${tienePagos && dia.esMesActual ? 'hover:border-ras-turquesa hover:shadow-md cursor-pointer hover:scale-[1.02]' : ''}`}
+                    >
+                      <div className={`text-center text-xs font-bold mb-1 w-6 h-6 rounded-full flex items-center justify-center mx-auto transition-all font-poppins ${
+                        dia.esHoy ? 'bg-ras-turquesa text-white shadow-md' : dia.esMesActual ? 'bg-gray-100 text-gray-700' : 'bg-transparent text-gray-400'
+                      }`}>
+                        {dia.dia}
+                      </div>
+                      {tienePagos && dia.esMesActual && (
+                        <div className="space-y-1">
+                          {dia.pagos.slice(0, 2).map(pago => (
+                            <div
+                              key={pago.id}
+                              onClick={() => setPagoSeleccionado(pago)}
+                              className="text-[10px] p-1 bg-gradient-to-r from-ras-turquesa/10 to-ras-azul/10 rounded border border-ras-turquesa/30 hover:from-ras-turquesa/20 hover:to-ras-azul/20 transition-all"
+                            >
+                              <div className="flex items-center gap-1 text-ras-azul">
+                                <span className="flex-shrink-0">{getTipoIcon(pago.tipo_servicio)}</span>
+                                <span className="truncate flex-1 font-semibold">{pago.servicio_nombre}</span>
+                              </div>
+                            </div>
+                          ))}
+                          {dia.pagos.length > 2 && (
+                            <div className="text-[9px] text-center text-ras-azul font-bold">
+                              +{dia.pagos.length - 2} más
+                            </div>
+                          )}
+                          <div className="text-[10px] text-center font-bold text-ras-azul">
+                            ${(dia.montoTotal / 1000).toFixed(1)}K
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* VISTA SEMANA */}
+        {vista === 'semana' && (
+          <div className="bg-white rounded-xl shadow-md p-6 border border-gray-200">
+            <h3 className="text-lg font-bold text-ras-azul mb-4 font-poppins">
+              Pagos de esta semana ({pagosSemana.length})
+            </h3>
+            {pagosSemana.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                <p className="font-medium">No hay pagos programados esta semana</p>
+              </div>
+            ) : (
               <div className="space-y-3">
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm font-semibold text-gray-600">Fecha de pago</span>
-                  <span className="text-sm font-bold">
+                {pagosSemana
+                  .sort((a, b) => new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime())
+                  .map(pago => (
+                    <div
+                      key={pago.id}
+                      onClick={() => setPagoSeleccionado(pago)}
+                      className="flex items-center gap-4 p-4 bg-gradient-to-r from-ras-turquesa/5 to-ras-azul/5 rounded-xl border border-ras-turquesa/20 hover:border-ras-turquesa hover:shadow-md transition-all cursor-pointer"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-ras-turquesa/20 to-ras-azul/20 flex items-center justify-center text-ras-azul">
+                        {getTipoIcon(pago.tipo_servicio)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-gray-800 font-poppins">{pago.servicio_nombre}</div>
+                        <div className="text-sm text-gray-600">{pago.propiedad_nombre}</div>
+                        <div className="text-xs text-gray-500">{pago.propietario_nombre}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-medium text-gray-600">
+                          {new Date(pago.fecha_pago).toLocaleDateString('es-MX', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short'
+                          })}
+                        </div>
+                        <div className="text-lg font-bold text-green-600 font-poppins">
+                          ${pago.monto_estimado.toLocaleString('es-MX')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VISTA LISTADO */}
+        {vista === 'listado' && (
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-ras-azul to-ras-turquesa text-white">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase">Fecha</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase">Servicio</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase">Propiedad</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold uppercase">Propietario</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold uppercase">Monto</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {pagosFiltrados.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                        <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <p className="font-medium">No hay pagos con los filtros seleccionados</p>
+                      </td>
+                    </tr>
+                  ) : (
+                    pagosFiltrados
+                      .sort((a, b) => new Date(a.fecha_pago).getTime() - new Date(b.fecha_pago).getTime())
+                      .map(pago => (
+                        <tr
+                          key={pago.id}
+                          onClick={() => setPagoSeleccionado(pago)}
+                          className="hover:bg-ras-turquesa/5 cursor-pointer transition-colors"
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {new Date(pago.fecha_pago).toLocaleDateString('es-MX', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                              })}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {new Date(pago.fecha_pago).toLocaleDateString('es-MX', { weekday: 'long' })}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <div className="text-ras-azul">{getTipoIcon(pago.tipo_servicio)}</div>
+                              <div className="text-sm font-medium text-gray-900">{pago.servicio_nombre}</div>
+                            </div>
+                            <div className="text-xs text-gray-500 capitalize">{pago.tipo_servicio}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm font-medium text-gray-900">{pago.propiedad_nombre}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900">{pago.propietario_nombre}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <div className="text-lg font-bold text-green-600 font-poppins">
+                              ${pago.monto_estimado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de detalle */}
+        {pagoSeleccionado && (
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setPagoSeleccionado(null)}
+          >
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="bg-gradient-to-r from-ras-azul to-ras-turquesa p-6 text-white">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center border border-white/30">
+                      {getTipoIcon(pagoSeleccionado.tipo_servicio)}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold font-poppins">{pagoSeleccionado.servicio_nombre}</h3>
+                      <p className="text-sm text-white/90 font-roboto">{pagoSeleccionado.propiedad_nombre}</p>
+                      <p className="text-xs text-white/80 font-roboto">{pagoSeleccionado.propietario_nombre}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setPagoSeleccionado(null)}
+                    className="text-white/80 hover:text-white hover:bg-white/20 rounded-lg p-1.5 transition-all"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+              <div className="p-6 space-y-4">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span className="text-sm font-semibold">Fecha de pago</span>
+                  </div>
+                  <span className="text-sm font-bold text-gray-800">
                     {new Date(pagoSeleccionado.fecha_pago).toLocaleDateString('es-MX', {
-                      weekday: 'long',
                       day: 'numeric',
-                      month: 'long',
+                      month: 'short',
                       year: 'numeric'
                     })}
                   </span>
                 </div>
-
-                <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                  <span className="text-sm font-semibold text-gray-600">Monto</span>
-                  <span className="text-lg font-bold text-green-600">
+                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50 to-green-100/50 rounded-xl border border-green-200">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                    <span className="text-sm font-semibold">Monto</span>
+                  </div>
+                  <span className="text-xl font-bold text-green-600 font-poppins">
                     ${pagoSeleccionado.monto_estimado.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
-
                 <button
                   onClick={() => {
                     router.push(`/dashboard/propiedad/${pagoSeleccionado.propiedad_id}/tickets`)
                     setPagoSeleccionado(null)
                   }}
-                  className="w-full py-3 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 transition-all"
+                  className="w-full py-3.5 bg-gradient-to-r from-ras-azul to-ras-turquesa text-white rounded-xl font-semibold hover:shadow-lg hover:scale-[1.02] transition-all font-poppins flex items-center justify-center gap-2"
                 >
-                  Ver todos los pagos de esta propiedad →
+                  <span>Ver todos los pagos</span>
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               </div>
             </div>

@@ -12,9 +12,14 @@ interface Step4Props {
     nombre: string;
     telefono: string;
     correo: string;
-    tipo: 'inquilino' | 'proveedor';
+    tipo: 'inquilino' | 'propietario' | 'proveedor' | 'supervisor';
   }>;
-  onAgregarContacto?: (tipo: 'inquilino' | 'proveedor') => void;
+  usuariosRegistrados?: Array<{
+    id: string;
+    full_name: string;
+    email: string;
+  }>;
+  onAgregarContacto?: (tipo: 'inquilino' | 'propietario' | 'proveedor' | 'supervisor') => void;
 }
 
 const AMENIDADES_VACACIONAL = [
@@ -46,12 +51,32 @@ const DURACION_CONTRATO_UNIDAD = [
   { value: 'años', label: 'Años' }
 ];
 
-export default function Step4_Condicionales({ data, onUpdate, contactos = [], onAgregarContacto }: Step4Props) {
+export default function Step4_Condicionales({ 
+  data, 
+  onUpdate, 
+  contactos = [], 
+  usuariosRegistrados = [],
+  onAgregarContacto 
+}: Step4Props) {
   // Determinar si está rentado basado en si hay inquilino_id con valor
   const [estaRentado, setEstaRentado] = React.useState(false);
 
-  // Filtrar solo inquilinos
+  // Filtrar correctamente por tipo
   const inquilinos = contactos.filter(c => c.tipo === 'inquilino');
+  const propietarios = contactos.filter(c => c.tipo === 'propietario');
+  const supervisores = contactos.filter(c => c.tipo === 'supervisor');
+
+  // Combinar propietarios de contactos + usuarios registrados del sistema
+  const propietariosCombinados = [
+    ...propietarios.map(p => ({ id: p.id, nombre: p.nombre, origen: 'contacto' })),
+    ...usuariosRegistrados.map(u => ({ id: u.id, nombre: u.full_name, origen: 'usuario' }))
+  ];
+
+  // Combinar supervisores de contactos + usuarios registrados del sistema
+  const supervisoresCombinados = [
+    ...supervisores.map(s => ({ id: s.id, nombre: s.nombre, origen: 'contacto' })),
+    ...usuariosRegistrados.map(u => ({ id: u.id, nombre: u.full_name, origen: 'usuario' }))
+  ];
 
   // Sincronizar el estado cuando cambie el inquilino_id desde fuera
   React.useEffect(() => {
@@ -62,7 +87,7 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
     onUpdate({ [field]: value });
   };
 
-  // NUEVO: Helper para actualizar precios
+  // Helper para actualizar precios
   const handlePrecioChange = (tipo: 'mensual' | 'noche' | 'venta', value: string) => {
     const precioNumerico = value === '' ? null : parseFloat(value);
     onUpdate({ 
@@ -88,7 +113,6 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
       handleChange('fecha_inicio_contrato', '');
       handleChange('duracion_contrato_valor', '');
       handleChange('duracion_contrato_unidad', 'meses');
-      // ACTUALIZADO: Limpiar precio mensual usando la nueva estructura
       handlePrecioChange('mensual', '');
       handleChange('frecuencia_pago', 'mensual');
       handleChange('dia_pago', '');
@@ -148,7 +172,7 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                 {/* Inquilino */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Inquilino
+                    Inquilino *
                   </label>
                   <div className="flex gap-2">
                     <select
@@ -200,25 +224,24 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                         onChange={(e) => handleChange('duracion_contrato_valor', e.target.value)}
                         placeholder="12"
                         className="flex-1"
-                        min="1"
                       />
                       <select
                         value={data.duracion_contrato_unidad || 'meses'}
                         onChange={(e) => handleChange('duracion_contrato_unidad', e.target.value)}
-                        className="w-28 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul focus:border-transparent font-roboto text-sm"
+                        className="w-32 px-3 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm font-medium"
                       >
-                        {DURACION_CONTRATO_UNIDAD.map(unidad => (
-                          <option key={unidad.value} value={unidad.value}>{unidad.label}</option>
+                        {DURACION_CONTRATO_UNIDAD.map(d => (
+                          <option key={d.value} value={d.value}>{d.label}</option>
                         ))}
                       </select>
                     </div>
                   </div>
 
-                  {/* ACTUALIZADO: Monto de renta usando precios.mensual */}
+                  {/* Precio mensual */}
                   <div>
                     <Input
                       id="precio_mensual"
-                      label="Monto de renta"
+                      label="Precio mensual"
                       type="number"
                       value={data.precios?.mensual?.toString() || ''}
                       onChange={(e) => handlePrecioChange('mensual', e.target.value)}
@@ -235,21 +258,19 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                     <select
                       value={data.frecuencia_pago || 'mensual'}
                       onChange={(e) => handleChange('frecuencia_pago', e.target.value)}
-                      className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul focus:border-transparent font-roboto text-sm"
+                      className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm font-medium"
                     >
-                      {FRECUENCIA_PAGO.map(frecuencia => (
-                        <option key={frecuencia.value} value={frecuencia.value}>
-                          {frecuencia.label}
-                        </option>
+                      {FRECUENCIA_PAGO.map(f => (
+                        <option key={f.value} value={f.value}>{f.label}</option>
                       ))}
                     </select>
                   </div>
 
                   {/* Día de pago */}
-                  <div className="md:col-span-2">
+                  <div>
                     <Input
                       id="dia_pago"
-                      label="Día de pago del mes"
+                      label="Día de pago"
                       type="number"
                       value={data.dia_pago}
                       onChange={(e) => handleChange('dia_pago', e.target.value)}
@@ -262,14 +283,13 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
               </div>
             )}
 
-            {/* Campos cuando NO está rentado */}
+            {/* Campos solo si NO está rentado */}
             {!estaRentado && (
               <div className="space-y-4 pt-2">
-                {/* Precio de renta */}
                 <div>
                   <Input
                     id="precio_renta_disponible"
-                    label="Precio de renta"
+                    label="Precio de renta (disponible)"
                     type="number"
                     value={data.precio_renta_disponible}
                     onChange={(e) => handleChange('precio_renta_disponible', e.target.value)}
@@ -278,97 +298,90 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                   />
                 </div>
 
-                {/* Requisitos */}
+                {/* Requisitos de renta */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-3">
-                    Requisitos
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Requisitos de renta
                   </label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    {/* Requisitos predefinidos */}
-                    {['Depósito de garantía', 'Aval', 'Pet Friendly', 'Comprobante de ingresos', 'Referencias personales', 'Seguro de arrendamiento'].map(requisito => (
-                      <label
-                        key={requisito}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors"
-                      >
+                  <div className="space-y-2">
+                    {/* Requisitos predefinidos como checkboxes */}
+                    {['Aval', 'Depósito', 'Referencias'].map(req => (
+                      <label key={req} className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
-                          checked={data.requisitos_renta?.includes(requisito) || false}
+                          checked={data.requisitos_renta?.includes(req) || false}
                           onChange={(e) => {
-                            const requisitos = data.requisitos_renta || [];
-                            const newRequisitos = e.target.checked
-                              ? [...requisitos, requisito]
-                              : requisitos.filter(r => r !== requisito);
-                            handleChange('requisitos_renta', newRequisitos);
+                            const current = data.requisitos_renta || [];
+                            const updated = e.target.checked
+                              ? [...current, req]
+                              : current.filter(r => r !== req);
+                            handleChange('requisitos_renta', updated);
                           }}
                           className="rounded text-ras-azul focus:ring-ras-azul"
                         />
-                        <span className="text-sm font-medium text-gray-700">{requisito}</span>
+                        <span className="text-sm font-medium text-gray-700">{req}</span>
                       </label>
                     ))}
 
-                    {/* Requisitos personalizados */}
-                    {data.requisitos_renta_custom?.map((requisito, index) => (
-                      <div key={`custom-${index}`} className="flex items-center gap-2">
-                        <label className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-blue-50">
-                          <input
-                            type="checkbox"
-                            checked={true}
-                            onChange={() => {
-                              const newCustom = data.requisitos_renta_custom?.filter((_, i) => i !== index) || [];
-                              handleChange('requisitos_renta_custom', newCustom);
-                            }}
-                            className="rounded text-ras-azul focus:ring-ras-azul"
-                          />
-                          <span className="text-sm font-medium text-gray-700">{requisito}</span>
-                        </label>
+                    {/* Requisitos personalizados agregados */}
+                    {data.requisitos_renta_custom?.map((req, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          readOnly
+                          className="rounded text-ras-azul focus:ring-ras-azul"
+                        />
+                        <span className="text-sm font-medium text-gray-700 flex-1">{req}</span>
                         <button
                           type="button"
                           onClick={() => {
-                            const newCustom = data.requisitos_renta_custom?.filter((_, i) => i !== index) || [];
-                            handleChange('requisitos_renta_custom', newCustom);
+                            const updated = data.requisitos_renta_custom?.filter((_, i) => i !== idx);
+                            handleChange('requisitos_renta_custom', updated);
                           }}
-                          className="px-2 py-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="text-red-600 hover:text-red-700"
                         >
-                          ×
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
                         </button>
                       </div>
                     ))}
-                  </div>
 
-                  {/* Agregar requisito personalizado */}
-                  <div className="flex gap-2 mt-3">
-                    <input
-                      type="text"
-                      id="nuevo-requisito"
-                      placeholder="Agregar requisito personalizado..."
-                      className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          const input = e.currentTarget;
-                          const valor = input.value.trim();
+                    {/* Input para agregar requisito personalizado */}
+                    <div className="flex gap-2 mt-2">
+                      <Input
+                        id="nuevo-requisito"
+                        placeholder="Agregar requisito personalizado..."
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const input = e.target as HTMLInputElement;
+                            const valor = input.value.trim();
+                            if (valor) {
+                              const customActuales = data.requisitos_renta_custom || [];
+                              handleChange('requisitos_renta_custom', [...customActuales, valor]);
+                              input.value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.getElementById('nuevo-requisito') as HTMLInputElement;
+                          const valor = input?.value.trim();
                           if (valor) {
                             const customActuales = data.requisitos_renta_custom || [];
                             handleChange('requisitos_renta_custom', [...customActuales, valor]);
                             input.value = '';
                           }
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const input = document.getElementById('nuevo-requisito') as HTMLInputElement;
-                        const valor = input?.value.trim();
-                        if (valor) {
-                          const customActuales = data.requisitos_renta_custom || [];
-                          handleChange('requisitos_renta_custom', [...customActuales, valor]);
-                          input.value = '';
-                        }
-                      }}
-                      className="px-4 py-2 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors text-sm font-medium"
-                    >
-                      Agregar
-                    </button>
+                        }}
+                        className="px-4 py-2 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors text-sm font-medium"
+                      >
+                        Agregar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -381,7 +394,7 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
           <div key={estado} className="space-y-5">
             <h3 className="font-bold text-gray-900 font-poppins text-lg">Renta Vacacional</h3>
 
-            {/* ACTUALIZADO: Precio por noche usando precios.noche */}
+            {/* Precio por noche */}
             <div>
               <Input
                 id="precio_noche"
@@ -430,7 +443,7 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
           <div key={estado} className="space-y-5">
             <h3 className="font-bold text-gray-900 font-poppins text-lg">Venta</h3>
 
-            {/* ACTUALIZADO: Precio de venta usando precios.venta */}
+            {/* Precio de venta */}
             <div>
               <Input
                 id="precio_venta"
@@ -459,6 +472,7 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {/* Propietario - COMBINA contactos + usuarios registrados */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Propietario
@@ -470,13 +484,30 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                 className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm font-medium"
               >
                 <option value="">Selecciona el propietario</option>
-                {contactos.filter(c => c.tipo === 'inquilino').map(c => (
-                  <option key={c.id} value={c.id}>{c.nombre}</option>
-                ))}
+                {propietariosCombinados.length > 0 ? (
+                  <>
+                    {/* Primero contactos */}
+                    {propietarios.length > 0 && (
+                      <optgroup label="📋 Contactos registrados">
+                        {propietarios.map(c => (
+                          <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {/* Luego usuarios del sistema */}
+                    {usuariosRegistrados.length > 0 && (
+                      <optgroup label="👤 Usuarios del sistema">
+                        {usuariosRegistrados.map(u => (
+                          <option key={u.id} value={u.id}>{u.full_name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </>
+                ) : null}
               </select>
               <button
                 type="button"
-                onClick={() => onAgregarContacto?.('inquilino')}
+                onClick={() => onAgregarContacto?.('propietario')}
                 className="px-3 py-2.5 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors"
                 title="Agregar propietario"
               >
@@ -487,6 +518,7 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
             </div>
           </div>
 
+          {/* Supervisor - COMBINA contactos + usuarios registrados */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               Supervisor
@@ -498,13 +530,30 @@ export default function Step4_Condicionales({ data, onUpdate, contactos = [], on
                 className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm font-medium"
               >
                 <option value="">Selecciona el supervisor</option>
-                {contactos.filter(c => c.tipo === 'inquilino').map(c => (
-                  <option key={c.id} value={c.id}>{c.nombre}</option>
-                ))}
+                {supervisoresCombinados.length > 0 ? (
+                  <>
+                    {/* Primero contactos */}
+                    {supervisores.length > 0 && (
+                      <optgroup label="📋 Contactos registrados">
+                        {supervisores.map(c => (
+                          <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {/* Luego usuarios del sistema */}
+                    {usuariosRegistrados.length > 0 && (
+                      <optgroup label="👤 Usuarios del sistema">
+                        {usuariosRegistrados.map(u => (
+                          <option key={u.id} value={u.id}>{u.full_name}</option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </>
+                ) : null}
               </select>
               <button
                 type="button"
-                onClick={() => onAgregarContacto?.('inquilino')}
+                onClick={() => onAgregarContacto?.('supervisor')}
                 className="px-3 py-2.5 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors"
                 title="Agregar supervisor"
               >

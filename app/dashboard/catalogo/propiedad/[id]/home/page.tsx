@@ -33,6 +33,22 @@ interface Espacio {
   }
 }
 
+interface Ubicacion {
+  calle?: string | null
+  numero_exterior?: string | null
+  numero_interior?: string | null
+  colonia?: string | null
+  codigo_postal?: string | null
+  ciudad?: string | null
+  estado?: string | null
+  pais?: string | null
+  referencias?: string | null
+  google_maps_link?: string | null
+  es_complejo?: boolean
+  nombre_complejo?: string | null
+  amenidades_complejo?: string[]
+}
+
 interface PropiedadData {
   id: string
   user_id: string
@@ -42,31 +58,27 @@ interface PropiedadData {
   mobiliario: string
   capacidad_personas: number | null
   tamano_terreno: number | null
-  tamano_terreno_unit: string | null
   tamano_construccion: number | null
-  tamano_construccion_unit: string | null
   
-  // Ubicación
-  calle: string | null
-  numero_exterior: string | null
-  numero_interior: string | null
-  colonia: string | null
-  codigo_postal: string | null
-  ciudad: string | null
-  estado: string | null
-  pais: string | null
+  // ✅ NUEVO: Ubicación como JSON
+  ubicacion: Ubicacion | null
+  
+  // ✅ NUEVO: Precios consolidados
+  precios?: {
+    mensual?: number | null
+    noche?: number | null
+    venta?: number | null
+  }
+  
+  // ✅ NUEVO: Datos condicionales
+  datos_renta_largo_plazo?: any | null
+  datos_renta_vacacional?: any | null
+  datos_venta?: any | null
   
   // Contactos (IDs)
   propietario_id: string | null
   supervisor_id: string | null
   inquilino_id: string | null
-  
-  // Condicionales
-  fecha_inicio_contrato: string | null
-  costo_renta_mensual: number | null
-  precio_noche: number | null
-  amenidades_vacacional: string[] | null
-  precio_venta: number | null
   
   // Espacios
   espacios: Espacio[] | null
@@ -99,100 +111,83 @@ function GaleriaPropiedad({ propiedadId, amenidades }: { propiedadId: string, am
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="animate-spin h-8 w-8 border-4 border-purple-500 border-t-transparent rounded-full mx-auto"></div>
-        <p className="text-gray-600 mt-2">Cargando fotos...</p>
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
       </div>
     )
   }
 
+  if (photos.length === 0) {
+    return (
+      <div className="text-center py-6">
+        <svg className="w-12 h-12 text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <p className="text-gray-500 text-sm font-medium">No hay fotos disponibles</p>
+      </div>
+    )
+  }
+
+  const coverPhoto = photos.find(p => p.is_cover) || photos[0]
+
   return (
-    <div className="space-y-4">
-      {photos.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          {photos.map((photo) => (
-            <div 
-              key={photo.id} 
-              className="relative group cursor-pointer rounded-lg overflow-hidden border-2 border-gray-200 hover:border-purple-400 transition-all aspect-square"
-              onClick={() => setSelectedPhoto(photo.url)}
-            >
-              <img 
-                src={photo.url_thumbnail || photo.url} 
-                alt={photo.caption || 'Foto de propiedad'} 
-                className="w-full h-full object-cover"
-              />
-              
-              {photo.is_cover && (
-                <div className="absolute top-2 left-2 px-2 py-1 bg-purple-600 text-white text-xs font-bold rounded">
-                  PORTADA
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-          <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-            <circle cx="8.5" cy="8.5" r="1.5"/>
-            <polyline points="21 15 16 10 5 21"/>
-          </svg>
-          <p className="text-gray-600 font-medium">No hay fotos</p>
-          <p className="text-sm text-gray-500 mt-1">Las fotos se agregan desde la sección de Galería</p>
-        </div>
-      )}
-      
-      {amenidades && amenidades.length > 0 && (
-        <div className="pt-4 border-t-2 border-gray-200">
-          <span className="text-sm text-gray-700 font-bold block mb-3">Amenidades:</span>
-          <div className="flex flex-wrap gap-2">
-            {amenidades.map((amenidad, idx) => (
-              <span key={idx} className="px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-lg text-sm font-medium">
-                {amenidad}
-              </span>
-            ))}
+    <div>
+      {/* Grid compacto de fotos */}
+      <div className="grid grid-cols-6 gap-2">
+        {photos.slice(0, 6).map((photo, idx) => (
+          <div 
+            key={photo.id} 
+            className={`${idx === 0 ? 'col-span-2 row-span-2' : ''} aspect-square rounded-lg overflow-hidden bg-gray-100 cursor-pointer hover:opacity-75 transition-opacity`}
+            onClick={() => setSelectedPhoto(photo.url)}
+          >
+            <img 
+              src={photo.url_thumbnail || photo.url} 
+              alt={photo.caption || 'Foto de propiedad'}
+              className="w-full h-full object-cover"
+            />
           </div>
-        </div>
+        ))}
+      </div>
+
+      {photos.length > 6 && (
+        <p className="text-xs text-gray-500 mt-2 text-center">
+          +{photos.length - 6} fotos más
+        </p>
       )}
 
+      {/* Modal de foto ampliada */}
       {selectedPhoto && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-4"
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
           onClick={() => setSelectedPhoto(null)}
         >
-          <img 
-            src={selectedPhoto} 
-            alt="Vista completa" 
-            className="max-w-full max-h-full object-contain"
-          />
           <button 
-            className="absolute top-4 right-4 text-white text-3xl hover:text-purple-300 w-12 h-12 flex items-center justify-center"
+            className="absolute top-4 right-4 text-white text-4xl hover:text-gray-300"
             onClick={() => setSelectedPhoto(null)}
           >
             ×
           </button>
+          <img 
+            src={selectedPhoto} 
+            alt="Foto ampliada"
+            className="max-w-full max-h-full object-contain"
+          />
         </div>
       )}
     </div>
   )
 }
 
-// Componente de Ubicación inline
-function UbicacionPropiedad({ ubicacion }: { ubicacion?: any }) {
-  if (!ubicacion) {
-    return (
-      <div className="text-center py-8 text-gray-500">
-        No hay información de ubicación registrada
-      </div>
-    )
-  }
-
+// Componente de Ubicación mejorado
+function UbicacionCard({ ubicacion }: { ubicacion: Ubicacion }) {
   const direccionCompleta = [
     ubicacion.calle,
-    ubicacion.colonia && `Col. ${ubicacion.colonia}`,
+    ubicacion.numero_exterior,
+    ubicacion.numero_interior,
+    ubicacion.colonia,
     ubicacion.ciudad,
     ubicacion.estado,
-    ubicacion.codigo_postal && `C.P. ${ubicacion.codigo_postal}`,
+    ubicacion.codigo_postal,
     ubicacion.pais
   ].filter(Boolean).join(', ')
 
@@ -275,6 +270,7 @@ export default function HomePropiedad() {
   const [propietario, setPropietario] = useState<Contacto | null>(null)
   const [supervisor, setSupervisor] = useState<Contacto | null>(null)
   const [inquilino, setInquilino] = useState<Contacto | null>(null)
+  const [proveedores, setProveedores] = useState<Contacto[]>([])
   const [user, setUser] = useState<any>(null)
   
   // Estados para modales
@@ -320,6 +316,8 @@ export default function HomePropiedad() {
       logger.log('=== DATOS DE PROPIEDAD ===')
       logger.log('Propiedad completa:', propData)
       logger.log('Espacios:', propData.espacios)
+      logger.log('Precios:', propData.precios)
+      logger.log('Ubicación:', propData.ubicacion)
       
       let esColaborador = false
       if (!esPropio) {
@@ -362,6 +360,26 @@ export default function HomePropiedad() {
         setInquilino(inquilinoData)
       }
 
+      // Cargar proveedores desde los servicios
+      const { data: servicios } = await supabase
+        .from('servicios_inmueble')
+        .select('proveedor_id')
+        .eq('propiedad_id', propiedadId)
+        .not('proveedor_id', 'is', null)
+
+      if (servicios && servicios.length > 0) {
+        const proveedorIds = [...new Set(servicios.map(s => s.proveedor_id).filter(Boolean))]
+        
+        if (proveedorIds.length > 0) {
+          const { data: proveedoresData } = await supabase
+            .from('contactos')
+            .select('*')
+            .in('id', proveedorIds)
+          
+          setProveedores(proveedoresData || [])
+        }
+      }
+
     } catch (error: any) {
       logger.error('Error al cargar propiedad:', error)
       toast.error('Error al cargar la propiedad')
@@ -398,108 +416,38 @@ export default function HomePropiedad() {
 
   const editarPropiedad = () => {
     toast.info('Función de editar en desarrollo')
-  }
-
-  const abrirModalDuplicar = () => {
-    setNombreDuplicado(`${propiedad?.nombre} (Copia)`)
-    setShowDuplicarModal(true)
-  }
-
-  const eliminarPropiedad = async () => {
-    if (!user?.id || !propiedad) return
-
-    if (!propiedad.es_propio) {
-      toast.error('Solo el propietario puede eliminar esta propiedad')
-      return
-    }
-
-    const confirmarNombre = prompt(
-      `⚠️ ADVERTENCIA: Esta acción es PERMANENTE\n\n` +
-      `Para confirmar la eliminación, escribe el nombre exacto de la propiedad:\n` +
-      `"${propiedad.nombre}"\n\n` +
-      `Se eliminarán TODOS los datos relacionados:\n` +
-      `• Espacios y habitaciones\n` +
-      `• Colaboradores y permisos\n` +
-      `• Fotografías y documentos\n` +
-      `• Servicios registrados\n` +
-      `• Tickets y mantenimientos\n` +
-      `• Cuentas y pagos\n` +
-      `• Histórico completo`
-    )
-
-    if (!confirmarNombre) {
-      return
-    }
-
-    if (confirmarNombre !== propiedad.nombre) {
-      toast.error('El nombre no coincide. Eliminación cancelada.')
-      return
-    }
-
-    try {
-      logger.log('🗑️ Iniciando eliminación de propiedad:', propiedad.id)
-      
-      const { data, error, status, statusText } = await supabase
-        .from('propiedades')
-        .delete()
-        .eq('id', propiedad.id)
-      
-      logger.log('Respuesta:', { status, statusText, data, error })
-
-      if (error) {
-        if (error.code === '23503') {
-          throw new Error('No se puede eliminar: existen registros relacionados.')
-        } else if (error.code === '42501') {
-          throw new Error('Sin permisos: verifica las políticas RLS.')
-        } else {
-          throw error
-        }
-      }
-
-      logger.log('✅ Eliminación exitosa')
-      toast.success(`La propiedad "${propiedad.nombre}" ha sido eliminada permanentemente`)
-      window.location.href = '/dashboard/catalogo'
-      
-    } catch (error: any) {
-      logger.error('❌ ERROR:', error)
-      toast.error(`Error al eliminar: ${error.message}`)
-    }
+    logger.log('Editar propiedad')
   }
 
   const duplicarPropiedad = async () => {
     if (!nombreDuplicado.trim()) {
-      toast.error('Por favor ingresa un nombre para la propiedad duplicada')
+      toast.error('Ingresa un nombre para la propiedad duplicada')
       return
     }
-
-    if (!propiedad || !user?.id) return
 
     setDuplicando(true)
 
     try {
-      const { id, created_at, updated_at, es_propio, ...propiedadSinId } = propiedad
-      
       const nuevaPropiedad = {
-        ...propiedadSinId,
+        ...propiedad,
+        id: undefined,
         nombre: nombreDuplicado,
-        user_id: user.id,
-        is_draft: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }
 
-      const { data: propiedadCreada, error } = await supabase
+      const { data, error } = await supabase
         .from('propiedades')
-        .insert([nuevaPropiedad])
+        .insert(nuevaPropiedad)
         .select()
         .single()
 
       if (error) throw error
 
-      toast.success('¡Propiedad duplicada exitosamente!')
+      toast.success('Propiedad duplicada correctamente')
       setShowDuplicarModal(false)
-      router.push('/dashboard/catalogo')
-      
+      setNombreDuplicado('')
+      router.push(`/dashboard/propiedad/${data.id}/home`)
     } catch (error: any) {
       logger.error('Error al duplicar propiedad:', error)
       toast.error('Error al duplicar la propiedad')
@@ -508,62 +456,95 @@ export default function HomePropiedad() {
     }
   }
 
-  if (loading) return <Loading message="Cargando propiedad..." />
-  
-  if (!propiedad) return (
-    <div className="min-h-screen bg-gradient-to-br from-ras-crema via-white to-ras-crema flex items-center justify-center">
-      <div className="text-center">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Propiedad no encontrada</h2>
-        <button
-          onClick={volverCatalogo}
-          className="px-6 py-3 bg-ras-primary text-white rounded-lg hover:bg-ras-secondary transition-colors"
-        >
-          Volver al Catálogo
-        </button>
+  const eliminarPropiedad = async () => {
+    const confirmed = await confirm.danger(
+      `¿Eliminar "${propiedad?.nombre}"?`,
+      'Esta acción NO se puede deshacer. Se eliminarán todos los datos, colaboradores, fotos, tickets y todo el historial.'
+    )
+
+    if (!confirmed) return
+
+    try {
+      const { error } = await supabase
+        .from('propiedades')
+        .delete()
+        .eq('id', propiedadId)
+
+      if (error) throw error
+
+      toast.success('Propiedad eliminada correctamente')
+      router.push('/dashboard/catalogo')
+    } catch (error: any) {
+      logger.error('Error al eliminar propiedad:', error)
+      toast.error('Error al eliminar la propiedad')
+    }
+  }
+
+  if (loading) {
+    return <Loading />
+  }
+
+  if (!propiedad) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Propiedad no encontrada</h2>
+          <button
+            onClick={volverCatalogo}
+            className="mt-4 px-6 py-2 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90"
+          >
+            Volver al catálogo
+          </button>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-ras-crema via-white to-ras-crema">
-      <TopBar 
-        title="Home Propiedad"
+    <div className="min-h-screen bg-gray-50">
+      <TopBar
+        title={propiedad.nombre}
         showBackButton={true}
         showUserInfo={true}
         userEmail={user?.email}
         onLogout={handleLogout}
       />
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        {/* Header con título y botones de acción */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 font-poppins">
-                {propiedad.nombre}
-              </h1>
-              <p className="text-gray-500 mt-2 font-roboto">
-                Vista general y resumen de la propiedad
-              </p>
-            </div>
+      <main className="max-w-5xl mx-auto px-5 py-6">
+        
+        {/* Header con badges */}
+        <div className="mb-6">
+          {/* Badges de estados y tipo */}
+          <div className="flex flex-wrap gap-2">
+            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium">
+              {propiedad.tipo_propiedad}
+            </span>
             
-            <div className="flex gap-3">
-              <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg font-medium text-sm">
-                {propiedad.tipo_propiedad}
-              </span>
-              {propiedad.estados && propiedad.estados.length > 0 && (
-                <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg font-medium text-sm">
-                  {propiedad.estados.join(', ')}
+            {propiedad.estados && propiedad.estados.map((estado) => {
+              const colorMap: Record<string, string> = {
+                'Renta largo plazo': 'bg-green-100 text-green-700',
+                'Renta vacacional': 'bg-blue-100 text-blue-700',
+                'Venta': 'bg-purple-100 text-purple-700',
+                'Mantenimiento': 'bg-orange-100 text-orange-700',
+                'Suspendido': 'bg-red-100 text-red-700',
+                'Propietario': 'bg-gray-100 text-gray-700'
+              }
+              return (
+                <span 
+                  key={estado}
+                  className={`px-3 py-1 rounded-lg text-sm font-medium ${colorMap[estado] || 'bg-gray-100 text-gray-700'}`}
+                >
+                  {estado}
                 </span>
-              )}
-            </div>
+              )
+            })}
           </div>
         </div>
 
-        {/* LAYOUT REORGANIZADO */}
+        {/* Contenido principal */}
         <div className="space-y-6">
           
-          {/* FILA 1: Datos Básicos e Información Comercial */}
+          {/* FILA 1: Datos Básicos y Precios */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Datos Básicos */}
@@ -571,29 +552,27 @@ export default function HomePropiedad() {
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
                   <svg className="w-6 h-6 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                    <polyline points="9 22 9 12 15 12 15 22"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                   </svg>
                 </div>
                 <h2 className="text-xl font-bold text-gray-900 font-poppins">Datos Básicos</h2>
               </div>
               
-              <div className="space-y-4">
-                {propiedad.mobiliario && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Mobiliario:</span>
-                    <span className="text-gray-900 font-semibold">{propiedad.mobiliario}</span>
-                  </div>
-                )}
-
-                {propiedad.espacios && propiedad.espacios.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-gray-600 font-medium">Mobiliario:</span>
+                  <span className="text-gray-900 font-semibold">{propiedad.mobiliario}</span>
+                </div>
+                
+                {propiedad.espacios && (
                   <>
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
                       <span className="text-gray-600 font-medium">Habitaciones:</span>
                       <span className="text-gray-900 font-semibold">
-                        {propiedad.espacios.filter(e => e.type === 'Habitación').length}
+                        {propiedad.espacios.filter(e => e.type === 'Habitación' || e.type === 'Lock-off').length}
                       </span>
                     </div>
+                    
                     <div className="flex justify-between items-center py-2 border-b border-gray-100">
                       <span className="text-gray-600 font-medium">Baños:</span>
                       <span className="text-gray-900 font-semibold">
@@ -614,7 +593,7 @@ export default function HomePropiedad() {
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-gray-600 font-medium">Terreno:</span>
                     <span className="text-gray-900 font-semibold">
-                      {propiedad.tamano_terreno} {propiedad.tamano_terreno_unit || 'm²'}
+                      {propiedad.tamano_terreno} m²
                     </span>
                   </div>
                 )}
@@ -623,62 +602,143 @@ export default function HomePropiedad() {
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-gray-600 font-medium">Construcción:</span>
                     <span className="text-gray-900 font-semibold">
-                      {propiedad.tamano_construccion} {propiedad.tamano_construccion_unit || 'm²'}
+                      {propiedad.tamano_construccion} m²
                     </span>
                   </div>
                 )}
 
-                {/* Precios */}
-                {propiedad.precio_noche && (
-                  <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                    <span className="text-gray-600 font-medium">Precio por noche:</span>
-                    <span className="text-gray-900 font-semibold">
-                      ${propiedad.precio_noche.toLocaleString('es-MX')} MXN
-                    </span>
-                  </div>
-                )}
-
-                {propiedad.costo_renta_mensual && (
+                {/* ✅ PRECIOS agregados aquí */}
+                {propiedad.precios?.mensual && (
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
                     <span className="text-gray-600 font-medium">Renta mensual:</span>
-                    <span className="text-gray-900 font-semibold">
-                      ${propiedad.costo_renta_mensual.toLocaleString('es-MX')} MXN
+                    <span className="text-green-600 font-bold">
+                      ${propiedad.precios.mensual.toLocaleString('es-MX')} MXN
                     </span>
                   </div>
                 )}
 
-                {propiedad.precio_venta && (
+                {propiedad.precios?.noche && (
                   <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                    <span className="text-gray-600 font-medium">Precio por noche:</span>
+                    <span className="text-blue-600 font-bold">
+                      ${propiedad.precios.noche.toLocaleString('es-MX')} MXN
+                    </span>
+                  </div>
+                )}
+
+                {propiedad.precios?.venta && (
+                  <div className="flex justify-between items-center py-2">
                     <span className="text-gray-600 font-medium">Precio de venta:</span>
-                    <span className="text-gray-900 font-semibold">
-                      ${propiedad.precio_venta.toLocaleString('es-MX')} MXN
+                    <span className="text-purple-600 font-bold">
+                      ${propiedad.precios.venta.toLocaleString('es-MX')} MXN
                     </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Galería de Fotos */}
-            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                    <circle cx="8.5" cy="8.5" r="1.5"/>
-                    <polyline points="21 15 16 10 5 21"/>
-                  </svg>
+            {/* ✅ Información de Renta Largo Plazo */}
+            {propiedad.datos_renta_largo_plazo ? (
+              <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 font-poppins">Renta Largo Plazo</h2>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 font-poppins">Galería de Fotos</h2>
+                
+                <div className="space-y-3">
+                  {propiedad.datos_renta_largo_plazo.fecha_inicio_contrato && (
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">Fecha de inicio:</span>
+                      <span className="text-gray-900 font-semibold">
+                        {new Date(propiedad.datos_renta_largo_plazo.fecha_inicio_contrato).toLocaleDateString('es-MX')}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {propiedad.datos_renta_largo_plazo.frecuencia_pago && (
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">Frecuencia de pago:</span>
+                      <span className="text-gray-900 font-semibold capitalize">
+                        {propiedad.datos_renta_largo_plazo.frecuencia_pago}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {propiedad.datos_renta_largo_plazo.dia_pago && (
+                    <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                      <span className="text-gray-600 font-medium">Día de pago:</span>
+                      <span className="text-gray-900 font-semibold">
+                        Día {propiedad.datos_renta_largo_plazo.dia_pago}
+                      </span>
+                    </div>
+                  )}
+
+                  {propiedad.datos_renta_largo_plazo.requisitos_renta && propiedad.datos_renta_largo_plazo.requisitos_renta.length > 0 && (
+                    <div className="pt-2">
+                      <span className="text-sm text-gray-600 font-medium block mb-2">Requisitos:</span>
+                      <div className="flex flex-wrap gap-2">
+                        {propiedad.datos_renta_largo_plazo.requisitos_renta.map((req: string, idx: number) => (
+                          <span key={idx} className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-medium">
+                            {req}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {!propiedad.datos_renta_largo_plazo.fecha_inicio_contrato && 
+                   !propiedad.datos_renta_largo_plazo.frecuencia_pago && 
+                   !propiedad.datos_renta_largo_plazo.dia_pago && 
+                   (!propiedad.datos_renta_largo_plazo.requisitos_renta || propiedad.datos_renta_largo_plazo.requisitos_renta.length === 0) && (
+                    <p className="text-gray-500 text-center py-8 italic">No hay información de renta registrada</p>
+                  )}
+                </div>
               </div>
-              
-              <GaleriaPropiedad 
-                propiedadId={propiedad.id}
-                amenidades={propiedad.amenidades_vacacional}
-              />
-            </div>
+            ) : (
+              <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 font-poppins">Renta Largo Plazo</h2>
+                </div>
+                <p className="text-gray-500 text-center py-8 italic">No hay información de renta registrada</p>
+              </div>
+            )}
           </div>
 
-          {/* FILA 2: Espacios (si existen) */}
+          {/* ✅ NUEVO: Información de Renta Vacacional */}
+          {propiedad.datos_renta_vacacional && propiedad.datos_renta_vacacional.amenidades_vacacional?.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-cyan-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 font-poppins">Amenidades Vacacionales</h2>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {propiedad.datos_renta_vacacional.amenidades_vacacional.map((amenidad: string, idx: number) => (
+                  <div key={idx} className="flex items-center gap-2 p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+                    <svg className="w-4 h-4 text-cyan-600 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-medium text-cyan-900">{amenidad}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* FILA: Espacios (si existen) */}
           {propiedad.espacios && propiedad.espacios.length > 0 && (
             <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-6">
@@ -724,7 +784,7 @@ export default function HomePropiedad() {
             </div>
           )}
 
-          {/* FILA 3: Asignaciones y Ubicación */}
+          {/* FILA: Asignaciones y Ubicación */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* Asignaciones */}
@@ -780,16 +840,30 @@ export default function HomePropiedad() {
                     )}
                   </div>
                 )}
-
-                {/* Proveedores - Información pendiente de mostrar */}
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <span className="text-xs text-gray-600 font-semibold uppercase">Proveedores</span>
-                  <p className="text-sm text-gray-500 mt-2 italic">
-                    La información de proveedores asignados a servicios específicos se mostrará aquí próximamente.
-                  </p>
-                </div>
                 
-                {!propietario && !supervisor && !inquilino && (
+                {/* Proveedores */}
+                {proveedores.length > 0 && (
+                  <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                    <span className="text-xs text-purple-600 font-semibold uppercase block mb-3">
+                      Proveedores ({proveedores.length})
+                    </span>
+                    <div className="space-y-3">
+                      {proveedores.map((proveedor) => (
+                        <div key={proveedor.id} className="pb-3 border-b border-purple-200 last:border-0 last:pb-0">
+                          <p className="font-bold text-gray-900">{proveedor.nombre}</p>
+                          {proveedor.telefono && (
+                            <p className="text-sm text-gray-600 mt-1">📱 {proveedor.telefono}</p>
+                          )}
+                          {proveedor.email && (
+                            <p className="text-sm text-gray-600">✉️ {proveedor.email}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {!propietario && !supervisor && !inquilino && proveedores.length === 0 && (
                   <p className="text-gray-500 text-center py-8">No hay asignaciones registradas</p>
                 )}
               </div>
@@ -800,21 +874,44 @@ export default function HomePropiedad() {
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
                   <svg className="w-6 h-6 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                    <circle cx="12" cy="10" r="3"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
                 <h2 className="text-xl font-bold text-gray-900 font-poppins">Ubicación</h2>
               </div>
               
-              <UbicacionPropiedad ubicacion={propiedad.ubicacion} />
+              {propiedad.ubicacion ? (
+                <UbicacionCard ubicacion={propiedad.ubicacion} />
+              ) : (
+                <p className="text-gray-500 text-center py-8">No hay ubicación registrada</p>
+              )}
             </div>
           </div>
 
+          {/* ✅ MOVIDO AL FINAL: Galería de Fotos */}
+          <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 font-poppins">Galería de Fotos</h2>
+            </div>
+            
+            <GaleriaPropiedad 
+              propiedadId={propiedad.id}
+              amenidades={propiedad.datos_renta_vacacional?.amenidades_vacacional}
+            />
+          </div>
+
           {/* Información del Sistema */}
-          <div className="bg-gray-50 rounded-xl shadow-sm border-2 border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center">
+          <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
                 <svg className="w-6 h-6 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="16" x2="12" y2="12"/>
@@ -824,126 +921,107 @@ export default function HomePropiedad() {
               <h2 className="text-xl font-bold text-gray-900 font-poppins">Información del Sistema</h2>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <span className="text-sm text-gray-600">ID de Propiedad</span>
+                <span className="text-sm text-gray-600 font-medium">ID de Propiedad</span>
                 <p className="text-gray-900 font-mono text-sm mt-1">{propiedad.id}</p>
               </div>
+              
               <div>
-                <span className="text-sm text-gray-600">Creada</span>
-                <p className="text-gray-900 font-medium mt-1">
-                  {new Date(propiedad.created_at).toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                <span className="text-sm text-gray-600 font-medium">Creada</span>
+                <p className="text-gray-900 font-semibold mt-1">
+                  {new Date(propiedad.created_at).toLocaleDateString('es-MX', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
                   })}
                 </p>
               </div>
+              
               <div>
-                <span className="text-sm text-gray-600">Última actualización</span>
-                <p className="text-gray-900 font-medium mt-1">
-                  {new Date(propiedad.updated_at).toLocaleDateString('es-MX', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
+                <span className="text-sm text-gray-600 font-medium">Última actualización</span>
+                <p className="text-gray-900 font-semibold mt-1">
+                  {new Date(propiedad.updated_at).toLocaleDateString('es-MX', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
                   })}
                 </p>
               </div>
             </div>
 
             {/* Botones de acción */}
-            <div className="pt-4 border-t-2 border-gray-300 space-y-3">
+            <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* Compartir */}
                 <button
                   onClick={() => setShowCompartir(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center gap-2"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                    <polyline points="16 6 12 2 8 6"/>
-                    <line x1="12" y1="2" x2="12" y2="15"/>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                   </svg>
                   Compartir
                 </button>
 
-                {/* Editar */}
                 <button
                   onClick={editarPropiedad}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors font-medium"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center gap-2"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 20h9"/>
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                   Editar
                 </button>
 
-                {/* Duplicar */}
                 <button
-                  onClick={abrirModalDuplicar}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 bg-stone-600 text-white rounded-lg hover:bg-stone-700 transition-colors font-medium"
+                  onClick={() => setShowDuplicarModal(true)}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium flex items-center justify-center gap-2"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
                   </svg>
                   Duplicar
                 </button>
               </div>
-            </div>
 
-            {propiedad.es_propio && (
-              <div className="pt-3">
-                <button
-                  onClick={eliminarPropiedad}
-                  className="w-full px-4 py-3 bg-red-50 text-red-700 border-2 border-red-200 rounded-lg hover:bg-red-100 hover:border-red-300 transition-colors font-medium flex items-center justify-center gap-2"
-                >
-                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="3 6 5 6 21 6"/>
-                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    <line x1="10" y1="11" x2="10" y2="17"/>
-                    <line x1="14" y1="11" x2="14" y2="17"/>
-                  </svg>
-                  Eliminar propiedad
-                </button>
-              </div>
-            )}
+              <button
+                onClick={eliminarPropiedad}
+                className="w-full mt-3 px-6 py-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors font-medium border-2 border-red-200 flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                  <line x1="10" y1="11" x2="10" y2="17"/>
+                  <line x1="14" y1="11" x2="14" y2="17"/>
+                </svg>
+                Eliminar propiedad
+              </button>
+            </div>
           </div>
 
         </div>
       </main>
 
-      {/* Modal de Compartir */}
-      {showCompartir && propiedad && (
+      {/* Modal Compartir */}
+      {showCompartir && (
         <CompartirPropiedad
           isOpen={showCompartir}
           onClose={() => setShowCompartir(false)}
-          propiedadId={propiedad.id}
+          propiedadId={propiedadId}
           propiedadNombre={propiedad.nombre}
           userId={user.id}
           esPropio={propiedad.es_propio}
         />
       )}
 
-      {/* Modal de Duplicar */}
+      {/* Modal Duplicar */}
       {showDuplicarModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center">
-                <svg className="w-6 h-6 text-gray-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Duplicar Propiedad</h2>
-                <p className="text-sm text-gray-500">Ingresa el nombre para la nueva propiedad</p>
-              </div>
-            </div>
-
-            <div className="mb-6">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Duplicar Propiedad</h3>
+            
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nombre de la nueva propiedad
               </label>
@@ -951,35 +1029,28 @@ export default function HomePropiedad() {
                 type="text"
                 value={nombreDuplicado}
                 onChange={(e) => setNombreDuplicado(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-gray-400 focus:outline-none transition-colors"
-                placeholder="Nombre de la propiedad"
+                placeholder={`Copia de ${propiedad.nombre}`}
+                className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
             <div className="flex gap-3">
               <button
-                onClick={() => setShowDuplicarModal(false)}
+                onClick={() => {
+                  setShowDuplicarModal(false)
+                  setNombreDuplicado('')
+                }}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                 disabled={duplicando}
-                className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
               >
                 Cancelar
               </button>
               <button
                 onClick={duplicarPropiedad}
-                disabled={duplicando}
-                className="flex-1 px-4 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-800 transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+                disabled={duplicando || !nombreDuplicado.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {duplicando ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-                    </svg>
-                    Duplicando...
-                  </>
-                ) : (
-                  'Duplicar'
-                )}
+                {duplicando ? 'Duplicando...' : 'Duplicar'}
               </button>
             </div>
           </div>
