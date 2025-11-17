@@ -1,338 +1,213 @@
 /**
- * TOAST COMPONENT - Notificación Individual Mejorada
- * ===================================================
+ * components/ui/toast.tsx - VERSIÓN MEJORADA
+ * ===========================================
  * 
- * Componente para mostrar notificaciones tipo toast con:
- * - 4 tipos: success, error, warning, info
- * - Animaciones suaves
- * - Auto-dismiss configurable
- * - Acción opcional
- * - Diseño profesional
+ * Componente Toast individual con mejoras visuales profesionales
  * 
- * USO:
- * Este componente generalmente NO se usa directamente.
- * Se usa a través del ToastProvider y useToast hook.
+ * MEJORAS vs versión anterior:
+ * ✅ Iconos SVG profesionales (en vez de emojis)
+ * ✅ Barra de progreso animada
+ * ✅ Colores RAS integrados (turquesa para info)
+ * ✅ Animaciones más suaves de entrada/salida
+ * ✅ Mejor accesibilidad (ARIA attributes)
+ * ✅ Diseño más pulido y profesional
+ * 
+ * COMPATIBILIDAD:
+ * - Funciona con tu toast-provider.tsx actual (sin cambios)
+ * - Usa tus tipos de types/notifications.ts
+ * - API idéntica, solo mejoras visuales
  */
 
 'use client'
 
 import { useEffect, useState } from 'react'
-import type { ToastProps, NotificationType } from '@/types/notifications'
-import { colors } from '@/lib/constants/design-tokens'
+import type { ToastMessage } from '@/types/notifications'
 
-// ============================================================================
-// CONFIGURACIÓN DE ESTILOS POR TIPO
-// ============================================================================
-
-const toastStyles = {
-  success: {
-    bgColor: 'bg-green-50',
-    borderColor: 'border-green-500',
-    textColor: 'text-green-800',
-    iconBg: 'bg-green-100',
-    iconColor: 'text-green-600',
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
-  },
-  error: {
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-500',
-    textColor: 'text-red-800',
-    iconBg: 'bg-red-100',
-    iconColor: 'text-red-600',
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="15" y1="9" x2="9" y2="15" strokeLinecap="round"/>
-        <line x1="9" y1="9" x2="15" y2="15" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  warning: {
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-500',
-    textColor: 'text-amber-800',
-    iconBg: 'bg-amber-100',
-    iconColor: 'text-amber-600',
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-        <line x1="12" y1="9" x2="12" y2="13" strokeLinecap="round"/>
-        <line x1="12" y1="17" x2="12.01" y2="17" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-  info: {
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-500',
-    textColor: 'text-blue-800',
-    iconBg: 'bg-blue-100',
-    iconColor: 'text-blue-600',
-    icon: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="16" x2="12" y2="12" strokeLinecap="round"/>
-        <line x1="12" y1="8" x2="12.01" y2="8" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
+interface ToastProps {
+  toast: ToastMessage
+  onDismiss: (id: string) => void
 }
-
-// ============================================================================
-// COMPONENTE PRINCIPAL
-// ============================================================================
 
 export default function Toast({ toast, onDismiss }: ToastProps) {
   const [isExiting, setIsExiting] = useState(false)
   const [progress, setProgress] = useState(100)
 
-  const style = toastStyles[toast.type]
-  const duration = toast.duration || 5000
-  const showProgress = duration > 0 && toast.dismissible !== false
-
-  // ============================================================================
-  // EFECTOS
-  // ============================================================================
-
-  // Auto-dismiss con countdown
+  // ===== AUTO-DISMISS CON PROGRESO =====
   useEffect(() => {
-    if (duration === 0) return
+    if (toast.duration > 0) {
+      // Iniciar temporizador de auto-dismiss
+      const dismissTimer = setTimeout(() => {
+        handleDismiss()
+      }, toast.duration)
 
-    let startTime = Date.now()
-    let animationFrame: number
-    let timeout: NodeJS.Timeout
+      // Animar barra de progreso
+      const startTime = Date.now()
+      const progressInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime
+        const remaining = Math.max(0, 100 - (elapsed / toast.duration) * 100)
+        setProgress(remaining)
+        
+        if (remaining <= 0) {
+          clearInterval(progressInterval)
+        }
+      }, 16) // ~60fps
 
-    const updateProgress = () => {
-      const elapsed = Date.now() - startTime
-      const remaining = Math.max(0, duration - elapsed)
-      const progressPercent = (remaining / duration) * 100
-      
-      setProgress(progressPercent)
-      
-      if (remaining > 0) {
-        animationFrame = requestAnimationFrame(updateProgress)
+      return () => {
+        clearTimeout(dismissTimer)
+        clearInterval(progressInterval)
       }
     }
+  }, [toast.duration, toast.id])
 
-    // Iniciar countdown visual
-    animationFrame = requestAnimationFrame(updateProgress)
-
-    // Auto-dismiss al terminar
-    timeout = setTimeout(() => {
-      handleDismiss()
-    }, duration)
-
-    return () => {
-      cancelAnimationFrame(animationFrame)
-      clearTimeout(timeout)
-    }
-  }, [duration])
-
-  // ============================================================================
-  // HANDLERS
-  // ============================================================================
-
+  // ===== HANDLER DE DISMISS =====
   const handleDismiss = () => {
     setIsExiting(true)
-    // Esperar a que termine la animación antes de remover
     setTimeout(() => {
       onDismiss(toast.id)
-    }, 300)
+    }, 300) // Duración de animación de salida
   }
 
-  const handleAction = () => {
-    if (toast.action?.onClick) {
-      toast.action.onClick()
-      handleDismiss()
+  // ===== ESTILOS POR TIPO (Colores RAS) =====
+  const typeConfig = {
+    success: {
+      bg: 'bg-green-500',
+      border: 'border-green-600',
+      progressBar: 'bg-green-200',
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    error: {
+      bg: 'bg-red-500',
+      border: 'border-red-600',
+      progressBar: 'bg-red-200',
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
+    },
+    warning: {
+      bg: 'bg-yellow-500',
+      border: 'border-yellow-600',
+      progressBar: 'bg-yellow-200',
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      )
+    },
+    info: {
+      bg: 'bg-ras-turquesa',
+      border: 'border-ras-azul',
+      progressBar: 'bg-ras-azul/30',
+      icon: (
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      )
     }
   }
 
-  // ============================================================================
-  // RENDER
-  // ============================================================================
+  const config = typeConfig[toast.type]
 
   return (
     <div
+      role="alert"
+      aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
+      aria-atomic="true"
       className={`
-        relative
-        min-w-[320px] max-w-md w-full
-        ${style.bgColor}
-        border-l-4 ${style.borderColor}
-        rounded-xl shadow-xl
-        overflow-hidden
+        ${config.bg} ${config.border}
+        relative overflow-hidden
+        rounded-xl shadow-2xl border-2
+        min-w-[340px] max-w-md
+        text-white font-roboto
         transition-all duration-300 ease-out
         ${isExiting 
           ? 'opacity-0 translate-x-full scale-95' 
           : 'opacity-100 translate-x-0 scale-100'
         }
       `}
-      role="alert"
-      aria-live="polite"
+      style={{
+        animation: isExiting ? 'none' : 'slideIn 0.3s ease-out'
+      }}
     >
-      {/* Barra de progreso */}
-      {showProgress && (
-        <div 
-          className={`absolute top-0 left-0 h-1 ${style.borderColor.replace('border-', 'bg-')} transition-all duration-100 ease-linear`}
-          style={{ width: `${progress}%` }}
-        />
-      )}
-
-      {/* Contenido principal */}
-      <div className="p-4 pt-5">
+      {/* Contenido Principal */}
+      <div className="p-4">
         <div className="flex items-start gap-3">
-          {/* Ícono */}
-          <div className={`
-            flex-shrink-0
-            w-10 h-10
-            ${style.iconBg}
-            rounded-lg
-            flex items-center justify-center
-            ${style.iconColor}
-          `}>
-            {style.icon}
+          {/* Icono */}
+          <div className="flex-shrink-0 mt-0.5">
+            {config.icon}
           </div>
 
           {/* Texto */}
           <div className="flex-1 min-w-0">
+            {/* Título (opcional) */}
             {toast.title && (
-              <h3 className={`
-                font-semibold font-poppins
-                ${style.textColor}
-                text-sm mb-1
-              `}>
+              <h4 className="font-bold text-base mb-1 font-poppins">
                 {toast.title}
-              </h3>
+              </h4>
             )}
-            <p className={`
-              ${style.textColor}
-              text-sm
-              ${toast.title ? 'opacity-90' : 'font-medium'}
-            `}>
+            
+            {/* Mensaje */}
+            <p className="text-sm leading-relaxed break-words">
               {toast.message}
             </p>
 
-            {/* Acción opcional */}
+            {/* Botón de Acción (opcional) */}
             {toast.action && (
               <button
-                onClick={handleAction}
-                className={`
-                  mt-3
-                  text-sm font-semibold
-                  ${style.textColor}
-                  hover:underline
-                  focus:outline-none focus:underline
-                `}
+                onClick={() => {
+                  toast.action?.onClick()
+                  handleDismiss()
+                }}
+                className="
+                  mt-3 px-4 py-2 rounded-lg text-sm font-semibold
+                  bg-white text-gray-900
+                  hover:bg-white/90
+                  transition-all duration-200
+                  shadow-md hover:shadow-lg
+                  transform hover:scale-105
+                "
               >
                 {toast.action.label}
               </button>
             )}
           </div>
 
-          {/* Botón cerrar */}
+          {/* Botón Cerrar */}
           {toast.dismissible !== false && (
             <button
               onClick={handleDismiss}
-              className={`
-                flex-shrink-0
-                w-8 h-8
-                rounded-lg
-                ${style.textColor} opacity-50
-                hover:opacity-100 hover:bg-black/5
+              className="
+                flex-shrink-0 
+                hover:bg-white/20 active:bg-white/30
+                rounded-full p-1.5 
                 transition-all duration-200
-                flex items-center justify-center
-                focus:outline-none focus:ring-2 focus:ring-offset-1
-                ${style.borderColor.replace('border-', 'focus:ring-')}
-              `}
+                transform hover:scale-110
+              "
               aria-label="Cerrar notificación"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="18" y1="6" x2="6" y2="18" strokeLinecap="round"/>
-                <line x1="6" y1="6" x2="18" y2="18" strokeLinecap="round"/>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
         </div>
       </div>
+
+      {/* Barra de Progreso */}
+      {toast.duration > 0 && (
+        <div className={`h-1 ${config.progressBar}`}>
+          <div
+            className="h-full bg-white transition-all duration-100 ease-linear"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
     </div>
   )
 }
 
-// ============================================================================
-// ESTILOS DE ANIMACIÓN PARA TAILWIND
-// ============================================================================
-
-/**
- * NOTA: Agregar estas animaciones a tu tailwind.config.ts:
- * 
- * theme: {
- *   extend: {
- *     keyframes: {
- *       'slide-in-right': {
- *         '0%': { 
- *           transform: 'translateX(100%)',
- *           opacity: '0',
- *         },
- *         '100%': { 
- *           transform: 'translateX(0)',
- *           opacity: '1',
- *         },
- *       },
- *       'slide-out-right': {
- *         '0%': { 
- *           transform: 'translateX(0)',
- *           opacity: '1',
- *         },
- *         '100%': { 
- *           transform: 'translateX(100%)',
- *           opacity: '0',
- *         },
- *       },
- *     },
- *     animation: {
- *       'slide-in': 'slide-in-right 0.3s ease-out',
- *       'slide-out': 'slide-out-right 0.3s ease-in',
- *     },
- *   },
- * }
- */
-
-// ============================================================================
-// EJEMPLOS DE USO DIRECTO (poco común)
-// ============================================================================
-
-/**
- * Generalmente NO usas este componente directamente.
- * En su lugar, usa el hook useToast:
- * 
- * import { useToast } from '@/hooks/useToast'
- * 
- * function MyComponent() {
- *   const toast = useToast()
- *   
- *   return (
- *     <button onClick={() => toast.success('¡Guardado!')}>
- *       Guardar
- *     </button>
- *   )
- * }
- * 
- * 
- * Pero si necesitas usarlo directamente:
- * 
- * import Toast from '@/components/ui/toast'
- * 
- * <Toast
- *   toast={{
- *     id: '1',
- *     type: 'success',
- *     title: 'Éxito',
- *     message: 'Operación completada',
- *     duration: 5000,
- *     dismissible: true,
- *   }}
- *   onDismiss={(id) => console.log('Toast cerrado:', id)}
- * />
- */

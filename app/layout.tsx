@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Roboto, Poppins } from "next/font/google";
 import "./globals.css";
 import '@/styles/gallery-animations.css';
+import { ToastProvider } from '@/components/ui/toast-provider'
+import { ConfirmProvider } from '@/components/ui/confirm-modal'
 
 
 const roboto = Roboto({
@@ -31,7 +33,11 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${roboto.variable} ${poppins.variable}`}>
       <body className="font-roboto antialiased">
+      <ToastProvider>
+          <ConfirmProvider>
         {children}
+          </ConfirmProvider>
+      </ToastProvider>
       </body>
     </html>
   );
