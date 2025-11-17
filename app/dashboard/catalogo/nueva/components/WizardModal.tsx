@@ -1,48 +1,39 @@
-'use client';
-
 /**
- * WIZARD MODAL
+ * WizardModal - VERSIÓN ACTUALIZADA
  * 
- * Archivo: app/dashboard/catalogo/components/WizardModal.tsx
+ * Modal compatible con el nuevo sistema de guardado
  * 
- * Modal full-screen que envuelve el WizardContainer
- * - Animaciones suaves de entrada/salida
- * - Previene scroll del body cuando está abierto
- * - Confirmación antes de cerrar
- * - Cierra automáticamente al guardar exitosamente
+ * @version 2.0
  */
 
+'use client';
+
 import { useEffect, useState } from 'react';
-import { useConfirm } from '@/components/ui/confirm-modal';
-import { logger } from '@/lib/logger';
-import WizardContainer from '@/app/dashboard/catalogo/nueva/components/WizardContainer';
-import { PropertyFormData } from '@/types/property';
+import WizardContainer from './WizardContainer';
 
 interface WizardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: PropertyFormData) => Promise<void>;
-  onSaveDraft?: (data: PropertyFormData) => Promise<void>;
-  initialData?: Partial<PropertyFormData>;
+  mode?: 'create' | 'edit';
+  propertyId?: string;
+  onComplete?: (propertyId: string) => void | Promise<void>;
 }
 
 export default function WizardModal({
   isOpen,
   onClose,
-  onSave,
-  onSaveDraft,
-  initialData
+  mode = 'create',
+  propertyId,
+  onComplete
 }: WizardModalProps) {
+  
   const [isAnimating, setIsAnimating] = useState(false);
-  const confirm = useConfirm();
 
   useEffect(() => {
     if (isOpen) {
       setIsAnimating(true);
-      // Prevenir scroll del body
       document.body.style.overflow = 'hidden';
     } else {
-      // Restaurar scroll del body
       document.body.style.overflow = 'unset';
     }
 
@@ -51,36 +42,29 @@ export default function WizardModal({
     };
   }, [isOpen]);
 
-  const handleClose = async () => {
-    // Confirmar si quiere cerrar
-    const confirmed = await confirm.warning(
-      '¿Cerrar el formulario?',
-      'Los cambios se guardarán como borrador automáticamente.'
-    );
+  const handleClose = () => {
+    setIsAnimating(false);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
+
+  const handleComplete = async (propertyId: string) => {
+    console.log('✅ Propiedad completada:', propertyId);
     
-    if (confirmed) {
-      setIsAnimating(false);
-      setTimeout(() => {
-        onClose();
-      }, 300);
+    // Llamar callback antes de cerrar
+    if (onComplete) {
+      try {
+        await Promise.resolve(onComplete(propertyId));
+      } catch (error) {
+        console.error('Error en onComplete:', error);
+      }
     }
+    
+    // Cerrar modal
+    handleClose();
   };
 
-  const handleSaveSuccess = async (data: PropertyFormData) => {
-    try {
-      await onSave(data);
-      // Animación de salida
-      setIsAnimating(false);
-      setTimeout(() => {
-        onClose();
-      }, 300);
-    } catch (error) {
-      // El error ya fue manejado en onSave
-      logger.error('Error en handleSaveSuccess:', error);
-    }
-  };
-
-  // No renderizar si no está abierto
   if (!isOpen) return null;
 
   return (
@@ -91,7 +75,7 @@ export default function WizardModal({
         ${isAnimating ? 'opacity-100' : 'opacity-0'}
       `}
     >
-      {/* Overlay oscuro */}
+      {/* Overlay */}
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={handleClose}
@@ -105,24 +89,28 @@ export default function WizardModal({
           ${isAnimating ? 'translate-y-0' : 'translate-y-full'}
         `}
       >
-        {/* Header flotante con botón cerrar */}
+        {/* Header con botón cerrar */}
         <div className="sticky top-0 z-10 bg-gradient-to-b from-ras-azul/70 to-ras-turquesa/70 backdrop-blur-md border-b border-white/10 shadow-lg">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div>
-                <h2 className="text-lg font-bold text-white">Nueva Propiedad</h2>
-                <p className="text-xs text-white/80">Completa los 3 pasos del formulario</p>
+                <h2 className="text-lg font-bold text-white">
+                  {mode === 'create' ? 'Nueva Propiedad' : 'Editar Propiedad'}
+                </h2>
+                <p className="text-xs text-white/80">
+                  Completa los 5 pasos del formulario
+                </p>
               </div>
             </div>
 
             {/* Botón cerrar */}
             <button
               onClick={handleClose}
-              className="w-10 h-10 rounded-full border-2 border-white/30 bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center group"
+              className="w-10 h-10 rounded-full border-2 border-white/30 bg-white/10 hover:bg-white/20 transition-all flex items-center justify-center"
               aria-label="Cerrar"
             >
               <svg 
-                className="w-5 h-5 text-white transition-colors" 
+                className="w-5 h-5 text-white" 
                 viewBox="0 0 24 24" 
                 fill="none" 
                 stroke="currentColor" 
@@ -137,9 +125,10 @@ export default function WizardModal({
         {/* Contenido del Wizard */}
         <div className="relative min-h-[calc(100vh-80px)] bg-gray-50">
           <WizardContainer
-            initialData={initialData}
-            onSave={handleSaveSuccess}
-            onSaveDraft={onSaveDraft}
+            mode={mode}
+            propertyId={propertyId}
+            onComplete={handleComplete}
+            onCancel={handleClose}
           />
         </div>
       </div>

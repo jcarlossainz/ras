@@ -273,8 +273,8 @@ export interface PropertyFormData {
   antiguedad?: number;
   
   // ===== ASIGNACIONES (2 campos) =====
-  propietario_id: string;
-  supervisor_id?: string;
+  propietarios_email: string[];  
+  supervisores_email: string[];  
   
   // ===== DATOS CONDICIONALES (3 campos JSON - NUEVO) =====
   datos_renta_largo?: DatosRentaLargoPlazo;      // NUEVO: agrupa ~10 campos

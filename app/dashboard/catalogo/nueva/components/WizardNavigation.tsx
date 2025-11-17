@@ -1,16 +1,14 @@
 /**
- * WizardNavigation - VERSIÓN OPTIMIZADA
+ * WizardNavigation - VERSIÓN CORREGIDA
  * 
  * Componente de navegación mejorado para el wizard
  * 
- * Features nuevas:
- * - Integración con hooks de validación
- * - Indicador de progreso inline
- * - Tooltips informativos
- * - Botón "Guardar y Cerrar"
- * - Shortcuts de teclado
- * - Estados de carga más detallados
- * - Mejor feedback visual
+ * CAMBIOS vs versión anterior:
+ * ❌ Eliminado botón "Guardar Borrador"
+ * ✅ Guardado SOLO al hacer clic en "Siguiente"
+ * ✅ Guardado SOLO al hacer clic en "Guardar y Cerrar"
+ * ✅ NO hay auto-guardado cada 2 segundos
+ * ✅ Shortcuts de teclado mantenidos
  */
 
 'use client';
@@ -40,12 +38,11 @@ export interface WizardNavigationProps {
   
   // Callbacks de navegación
   onPrevious: () => void;
-  onNext: () => void;
+  onNext: () => void;  // ← Este DEBE guardar automáticamente
   
   // Callbacks de guardado
-  onSaveDraft?: () => void | Promise<void>;
-  onSaveAndClose?: () => void | Promise<void>;
-  onFinalSave?: () => void | Promise<void>;
+  onSaveAndClose?: () => void | Promise<void>;  // ← Guardar y salir
+  onFinalSave?: () => void | Promise<void>;     // ← Guardar en último step
   
   // Opciones
   showProgress?: boolean;
@@ -66,7 +63,6 @@ export default function WizardNavigation({
   completedSteps,
   onPrevious,
   onNext,
-  onSaveDraft,
   onSaveAndClose,
   onFinalSave,
   showProgress = true,
@@ -83,22 +79,10 @@ export default function WizardNavigation({
   const handleCancel = async () => {
     const confirmed = await confirm.warning(
       '¿Cancelar formulario?',
-      'Los cambios no guardados se perderán.'
+      'Los cambios se guardarán como borrador automáticamente al cambiar de paso.'
     );
     
     if (confirmed) {
-      window.history.back();
-    }
-  };
-  
-  /**
-   * Maneja guardar y cerrar
-   */
-  const handleSaveAndClose = async () => {
-    if (onSaveAndClose) {
-      await onSaveAndClose();
-    } else if (onSaveDraft) {
-      await onSaveDraft();
       window.history.back();
     }
   };
@@ -110,7 +94,7 @@ export default function WizardNavigation({
     if (!enableKeyboardShortcuts) return;
     
     const handleKeyPress = (e: KeyboardEvent) => {
-      // Alt + → = Siguiente
+      // Alt + → = Siguiente (guarda automáticamente)
       if (e.altKey && e.key === 'ArrowRight' && canGoNext && !isLoading) {
         e.preventDefault();
         onNext();
@@ -120,12 +104,6 @@ export default function WizardNavigation({
       if (e.altKey && e.key === 'ArrowLeft' && canGoPrev && !isLoading) {
         e.preventDefault();
         onPrevious();
-      }
-      
-      // Ctrl/Cmd + S = Guardar borrador
-      if ((e.ctrlKey || e.metaKey) && e.key === 's' && onSaveDraft && !isLoading) {
-        e.preventDefault();
-        onSaveDraft();
       }
       
       // Ctrl/Cmd + Enter = Guardar y publicar (último step)
@@ -145,7 +123,6 @@ export default function WizardNavigation({
     isLastStep,
     onNext,
     onPrevious,
-    onSaveDraft,
     onFinalSave
   ]);
   
@@ -196,45 +173,17 @@ export default function WizardNavigation({
             )}
           </div>
           
-          {/* Sección central: Botones de guardado */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          {/* Sección central: Botón Guardar y Cerrar */}
+          <div className="flex items-center gap-3 w-full sm:w-auto">
             
-            {/* Guardar Borrador */}
-            {onSaveDraft && !isLastStep && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onSaveDraft}
-                disabled={isLoading || isSaving}
-                className="w-full sm:w-auto"
-              >
-                {isSaving ? (
-                  <>
-                    <span className="inline-block animate-spin mr-2">⏳</span>
-                    Guardando...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    Guardar Borrador
-                    {showKeyboardHints && (
-                      <span className="ml-2 text-xs opacity-60">Ctrl+S</span>
-                    )}
-                  </>
-                )}
-              </Button>
-            )}
-            
-            {/* Guardar y Cerrar */}
+            {/* Guardar y Cerrar (disponible en todos los steps) */}
             {onSaveAndClose && !isLastStep && (
               <Button
                 type="button"
                 variant="outline"
-                onClick={handleSaveAndClose}
+                onClick={onSaveAndClose}
                 disabled={isLoading || isSaving}
-                className="w-full sm:w-auto"
+                className="w-full sm:w-auto border-2 border-ras-azul text-ras-azul hover:bg-ras-azul hover:text-white font-semibold"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                   <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
@@ -243,7 +192,7 @@ export default function WizardNavigation({
               </Button>
             )}
             
-            {/* Botón principal: Siguiente o Guardar Final */}
+            {/* Botón principal: Siguiente (guarda automáticamente) o Finalizar */}
             {isLastStep && onFinalSave ? (
               <Button
                 type="button"
@@ -274,15 +223,24 @@ export default function WizardNavigation({
                 type="button"
                 variant="primary"
                 onClick={onNext}
-                disabled={isLoading || !canGoNext}
-                className="w-full sm:w-auto group"
+                disabled={isLoading || !canGoNext || isSaving}
+                className="w-full sm:w-auto group bg-ras-turquesa hover:bg-ras-azul font-semibold"
               >
-                Siguiente
-                <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-                {showKeyboardHints && (
-                  <span className="ml-2 text-xs opacity-80">Alt+→</span>
+                {isSaving ? (
+                  <>
+                    <span className="inline-block animate-spin mr-2">⏳</span>
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    Siguiente
+                    <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path d="M5 12h14M12 5l7 7-7 7" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {showKeyboardHints && (
+                      <span className="ml-2 text-xs opacity-80">Alt+→</span>
+                    )}
+                  </>
                 )}
               </Button>
             )}
@@ -321,16 +279,14 @@ export default function WizardNavigation({
           </div>
           
           {/* Auto-guardado indicator */}
-          {onSaveDraft && (
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className="font-roboto">
-                Los cambios se guardan automáticamente al cambiar de paso
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-xs text-gray-500 bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
+            <svg className="w-4 h-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="font-roboto">
+              Los cambios se guardan al hacer clic en "Siguiente" o "Guardar y Cerrar"
+            </span>
+          </div>
           
           {/* Mostrar/ocultar hints de teclado */}
           {enableKeyboardShortcuts && (
@@ -349,9 +305,8 @@ export default function WizardNavigation({
           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-xs font-bold text-blue-900 mb-2">⌨️ Atajos de teclado:</p>
             <ul className="space-y-1 text-xs text-blue-800 font-roboto">
-              <li><kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">Alt</kbd> + <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">→</kbd> Siguiente paso</li>
+              <li><kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">Alt</kbd> + <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">→</kbd> Siguiente paso (guarda automáticamente)</li>
               <li><kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">Alt</kbd> + <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">←</kbd> Paso anterior</li>
-              {onSaveDraft && <li><kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">S</kbd> Guardar borrador</li>}
               {isLastStep && onFinalSave && <li><kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">Ctrl</kbd> + <kbd className="px-1.5 py-0.5 bg-white border border-blue-300 rounded text-xs">Enter</kbd> Guardar y publicar</li>}
             </ul>
           </div>

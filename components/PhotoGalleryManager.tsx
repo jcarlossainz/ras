@@ -8,7 +8,8 @@ import {
   updateCoverImage,
   updateImageSpace,
   updateImageCaption 
-} from '@/lib/supabase-storage';import type { PropertyImage, Space } from '@/types/property';
+} from '@/lib/supabase-storage';
+import type { PropertyImage, Space } from '@/types/property';
 
 interface PhotoGalleryManagerProps {
   propertyId: string;

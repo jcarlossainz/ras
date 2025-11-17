@@ -125,10 +125,10 @@ export default function Step5_Servicios({ data, onUpdate }: Step5Props) {
       provider: '',
       accountNumber: '',
       cost: 0,
-      montoTipo: 'fijo', // ✨ NUEVO - 'fijo' o 'variable'
-      frecuenciaCantidad: 1, // ✨ NUEVO - Número (ej: 1, 2, 3)
-      frecuenciaUnidad: 'mes', // ✨ NUEVO - 'dia', 'mes', 'año'
-      paymentFrequency: 'mensual', // Mantener por compatibilidad
+      montoTipo: 'fijo',
+      frecuenciaCantidad: 1,
+      frecuenciaUnidad: 'mes',
+      paymentFrequency: 'mensual',
       lastPaymentDate: '',
       notes: ''
     };
@@ -171,69 +171,60 @@ export default function Step5_Servicios({ data, onUpdate }: Step5Props) {
     if (window.confirm(`¿Eliminar "${nombreServicio}"?`)) {
       const nuevosServicios = servicios.filter(servicio => servicio.id !== id);
       onUpdate({ servicios: nuevosServicios });
+      
       if (servicioSeleccionado === id) {
         setServicioSeleccionado(null);
       }
-      toast.success(`🗑️ Servicio eliminado`);
+      
+      toast.success(`✅ Servicio eliminado`);
     }
   };
 
-  // Validar servicios antes de continuar (exportar esta función si es necesario)
-  const validarServicios = (): boolean => {
-    if (servicios.length === 0) {
-      return true; // Es válido no tener servicios
-    }
-
-    for (const servicio of servicios) {
-      if (!servicio.name || servicio.name.trim() === '') {
-        toast.error(`❌ El servicio necesita un nombre`);
-        setServicioSeleccionado(servicio.id);
-        return false;
-      }
-
-      if (!servicio.lastPaymentDate) {
-        toast.error(`❌ "${servicio.name}" necesita una fecha de último pago`);
-        setServicioSeleccionado(servicio.id);
-        return false;
-      }
-    }
-
-    return true;
-  };
+  // Resumen de servicios
+  const conteoServicios = servicios.reduce((acc, servicio) => {
+    const categoria = CATEGORIAS_SERVICIOS.find(cat => 
+      cat.servicios.includes(servicio.name)
+    )?.titulo || 'Otros';
+    acc[categoria] = (acc[categoria] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 font-poppins mb-2">
-            Servicios del Inmueble
-          </h2>
-          <p className="text-gray-600">
-            Gestiona los servicios asociados a la propiedad (agua, luz, gas, internet, etc.)
-          </p>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h2 className="text-2xl font-bold text-gray-900 font-poppins mb-2 flex items-center gap-3">
+              <svg className="w-7 h-7 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                <path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              Servicios de la Propiedad
+            </h2>
 
-          {/* Servicios agregados en rectángulos - SIMPLIFICADO */}
-          {servicios.length > 0 && (
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                {servicios.map(servicio => (
-                  <div
-                    key={servicio.id}
-                    className="p-4 border-2 border-gray-200 rounded-lg bg-gray-50 hover:border-ras-azul/50 transition-colors text-center"
+            {/* Resumen */}
+            {Object.keys(conteoServicios).length > 0 ? (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {Object.entries(conteoServicios).map(([categoria, cantidad]) => (
+                  <span
+                    key={categoria}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-ras-azul/10 border border-ras-azul/30 rounded-full text-xs font-semibold text-ras-azul"
                   >
-                    <p className="font-semibold text-gray-900 text-sm">
-                      {servicio.name}
-                    </p>
-                  </div>
+                    {cantidad} {categoria}
+                  </span>
                 ))}
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-gray-600">
+                Define todos los servicios asociados a la propiedad
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Agregar Servicios - 5 Columnas */}
+      {/* Agregar servicios */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
           <svg className="w-6 h-6 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -241,39 +232,49 @@ export default function Step5_Servicios({ data, onUpdate }: Step5Props) {
           </svg>
           Agregar Servicios
         </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        
+        {/* Grid de columnas de categorías */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {CATEGORIAS_SERVICIOS.map((categoria, idx) => (
-            <div 
-              key={idx} 
-              className={`border-2 rounded-xl p-4 bg-gray-50 border-gray-200 ${
-                categoria.columnas === 2 ? 'lg:col-span-2' : ''
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-3 pb-3 border-b border-gray-300">
-                {categoria.icono}
-                <h4 className="font-bold text-gray-900 text-sm">
+            <div key={idx} className="bg-gray-50 rounded-xl p-4 border-2 border-gray-100">
+              {/* Header de categoría con ícono */}
+              <div className="flex items-center gap-2 mb-4 pb-3 border-b-2 border-gray-200">
+                <div className="text-ras-azul">
+                  {categoria.icono}
+                </div>
+                <h4 className="text-sm font-bold text-gray-800">
                   {categoria.titulo}
                 </h4>
               </div>
 
-              <div className={`grid ${categoria.columnas === 2 ? 'grid-cols-2' : 'grid-cols-1'} gap-2`}>
-                {categoria.servicios.map((servicio, sIdx) => (
-                  <button
-                    key={sIdx}
-                    onClick={() => agregarServicio(servicio)}
-                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-white/80 rounded-lg transition-colors font-medium"
-                  >
-                    {servicio}
-                  </button>
-                ))}
+              {/* Lista vertical de servicios */}
+              <div className="space-y-2">
+                {categoria.servicios.map((servicio) => {
+                  const yaAgregado = servicios.some(s => s.name === servicio);
+                  return (
+                    <button
+                      key={servicio}
+                      onClick={() => !yaAgregado && agregarServicio(servicio)}
+                      disabled={yaAgregado}
+                      className={`
+                        w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left
+                        ${yaAgregado
+                          ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          : 'bg-white text-gray-700 hover:bg-ras-azul hover:text-white shadow-sm'
+                        }
+                      `}
+                    >
+                      {yaAgregado && '✓ '}{servicio}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Lista de servicios agregados para editar */}
+      {/* Lista de servicios agregados */}
       {servicios.length > 0 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -285,64 +286,62 @@ export default function Step5_Servicios({ data, onUpdate }: Step5Props) {
             </h3>
           </div>
 
-          <div className="space-y-4">
-            {servicios.map(servicio => (
+          <div className="space-y-3">
+            {servicios.map((servicio) => (
               <div
                 key={servicio.id}
-                className="bg-white rounded-xl shadow-sm border-2 border-gray-200 hover:border-ras-azul/50 transition-all"
+                className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
               >
                 {/* Header del servicio */}
-                <button
-                  onClick={() => setServicioSeleccionado(
-                    servicioSeleccionado === servicio.id ? null : servicio.id
-                  )}
-                  className="w-full p-4 flex items-center justify-between text-left"
+                <div
+                  onClick={() => setServicioSeleccionado(servicioSeleccionado === servicio.id ? null : servicio.id)}
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex-1">
-                    <h4 className="font-bold text-gray-900 text-lg">
-                      {servicio.name}
-                    </h4>
-                    <div className="flex flex-wrap gap-3 mt-1 text-sm text-gray-600">
-                      {servicio.provider && (
-                        <span>{servicio.provider}</span>
-                      )}
-                      {servicio.cost > 0 && (
-                        <span className="font-semibold text-ras-azul">
-                          ${servicio.cost.toLocaleString()} {servicio.montoTipo === 'variable' && '(Variable)'}
-                        </span>
-                      )}
-                      {servicio.lastPaymentDate && (
-                        <span className="text-green-700 font-medium">
-                          📅 Próximo: {new Date(calcularProximoPago(
-                            servicio.lastPaymentDate, 
-                            servicio.frecuenciaCantidad || 1, 
-                            servicio.frecuenciaUnidad || 'mes'
-                          )).toLocaleDateString('es-MX', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                          })}
-                        </span>
-                      )}
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-ras-azul/10 flex items-center justify-center">
+                      <svg className="w-5 h-5 text-ras-azul" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                        <path d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-900">{servicio.name}</h4>
+                      <p className="text-sm text-gray-600">
+                        {servicio.provider || 'Sin proveedor'} • ${servicio.cost || 0} • {servicio.montoTipo === 'fijo' ? 'Fijo' : 'Variable'}
+                      </p>
                     </div>
                   </div>
-                  <svg 
-                    className={`w-6 h-6 text-gray-400 transition-transform ${
-                      servicioSeleccionado === servicio.id ? 'rotate-180' : ''
-                    }`}
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="2" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M19 9l-7 7-7-7"/>
-                  </svg>
-                </button>
 
-                {/* Formulario expandible */}
+                  <div className="flex items-center gap-3">
+                    {servicio.lastPaymentDate && (
+                      <div className="text-right">
+                        <p className="text-xs text-gray-500">Próximo pago</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {new Date(calcularProximoPago(
+                            servicio.lastPaymentDate,
+                            servicio.frecuenciaCantidad || 1,
+                            servicio.frecuenciaUnidad || 'mes'
+                          )).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                        </p>
+                      </div>
+                    )}
+                    
+                    <svg
+                      className={`w-5 h-5 text-gray-400 transition-transform ${servicioSeleccionado === servicio.id ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M19 9l-7 7-7-7"/>
+                    </svg>
+                  </div>
+                </div>
+
+                {/* Detalles expandibles */}
                 {servicioSeleccionado === servicio.id && (
-                  <div className="px-4 pb-4 border-t border-gray-200">
-                    <div className="pt-4 space-y-4">
+                  <div className="border-t border-gray-200 p-6 bg-gray-50">
+                    <div className="space-y-4">
+                      {/* Grid de campos */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Nombre del Servicio */}
                         <div className="md:col-span-2">
@@ -400,7 +399,7 @@ export default function Step5_Servicios({ data, onUpdate }: Step5Props) {
                           />
                         </div>
 
-                        {/* ✨ NUEVO - Tipo de Monto */}
+                        {/* Tipo de Monto */}
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             ¿Monto Fijo o Variable?
@@ -415,7 +414,7 @@ export default function Step5_Servicios({ data, onUpdate }: Step5Props) {
                           </select>
                         </div>
 
-                        {/* ✨ NUEVO - Frecuencia Personalizada */}
+                        {/* Frecuencia Personalizada */}
                         <div className="md:col-span-2">
                           <label className="block text-sm font-semibold text-gray-700 mb-2">
                             Frecuencia de Pago

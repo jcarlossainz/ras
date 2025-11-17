@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/useToast'
@@ -11,11 +11,10 @@ import CompartirPropiedad from '@/components/CompartirPropiedad'
 import TopBar from '@/components/ui/topbar'
 import Loading from '@/components/ui/loading'
 import EmptyState from '@/components/ui/emptystate'
-import { PropertyFormData } from '@/types/property'
 
 interface Propiedad {
   id: string
-  user_id: string
+  owner_id: string
   nombre: string
   codigo_postal: string | null
   created_at: string
@@ -37,9 +36,6 @@ export default function CatalogoPage() {
   
   const [busqueda, setBusqueda] = useState('')
   const [filtroPropiedad, setFiltroPropiedad] = useState<'todos' | 'propios' | 'compartidos'>('todos')
-  
-  const draftIdRef = useRef<string | null>(null)
-  const isSavingRef = useRef(false)
 
   useEffect(() => { 
     checkUser()
@@ -60,10 +56,11 @@ export default function CatalogoPage() {
   }
 
   const cargarPropiedades = async (userId: string) => {
+    // ✅ ACTUALIZADO: usar owner_id en lugar de user_id
     const { data: propiedadesPropias } = await supabase
       .from('propiedades')
-      .select('id, user_id, nombre, created_at')
-      .eq('user_id', userId)
+      .select('id, owner_id, nombre_propiedad, created_at')
+      .eq('owner_id', userId)
       .order('created_at', { ascending: false })
     
     const { data: propiedadesCompartidas } = await supabase
@@ -76,14 +73,22 @@ export default function CatalogoPage() {
       const idsCompartidos = propiedadesCompartidas.map(p => p.propiedad_id)
       const { data: datosCompartidos } = await supabase
         .from('propiedades')
-        .select('id, user_id, nombre, created_at')
+        .select('id, owner_id, nombre_propiedad, created_at')
         .in('id', idsCompartidos)
       propiedadesCompartidasData = datosCompartidos || []
     }
     
     const todasPropiedades = [
-      ...(propiedadesPropias || []).map(p => ({ ...p, es_propio: true })),
-      ...(propiedadesCompartidasData || []).map(p => ({ ...p, es_propio: false }))
+      ...(propiedadesPropias || []).map(p => ({ 
+        ...p, 
+        nombre: p.nombre_propiedad,
+        es_propio: true 
+      })),
+      ...(propiedadesCompartidasData || []).map(p => ({ 
+        ...p, 
+        nombre: p.nombre_propiedad,
+        es_propio: false 
+      }))
     ]
     
     for (const prop of todasPropiedades) {
@@ -166,11 +171,12 @@ export default function CatalogoPage() {
     if (!confirmed) return
 
     try {
+      // ✅ ACTUALIZADO: usar owner_id
       const { error } = await supabase
         .from('propiedades')
         .delete()
         .eq('id', propiedadId)
-        .eq('user_id', user.id)
+        .eq('owner_id', user.id)
 
       if (error) throw error
 
@@ -190,318 +196,9 @@ export default function CatalogoPage() {
     router.push('/login')
   }
 
-
-  // ====================================
-  // 🔧 HELPER: Convertir formato antiguo a nuevo
-  // ====================================
-  const convertirANuevoFormato = (data: any) => {
-    // Construir ubicacion (nuevo o desde campos sueltos)
-    const ubicacionFinal = data.ubicacion && typeof data.ubicacion === 'object' 
-      ? data.ubicacion 
-      : {
-          calle: data.calle || null,
-          numero_exterior: data.numero_exterior || null,
-          numero_interior: data.numero_interior || null,
-          colonia: data.colonia || null,
-          codigo_postal: data.codigo_postal || null,
-          ciudad: data.ciudad || null,
-          estado: data.estado || null,
-          pais: data.pais || null,
-          referencias: data.referencias || null,
-          google_maps_link: data.google_maps_link || null,
-          es_complejo: data.es_complejo || false,
-          nombre_complejo: data.nombre_complejo || null,
-          amenidades_complejo: data.amenidades_complejo || []
-        };
-
-    // ✅ NUEVO: Construir objeto precios consolidado
-    const preciosFinal = data.precios || {
-      mensual: data.precios?.mensual || null,
-      noche: data.precios?.noche || null,
-      venta: data.precios?.venta || null
-    };
-
-    // Convertir formato antiguo a nuevo
-    return {
-      ...data,
-      ubicacion: ubicacionFinal,
-      
-      // ✅ NUEVO: Campo precios consolidado
-      precios: preciosFinal,
-      
-      // Construir datos condicionales desde campos sueltos
-      datos_renta_largo_plazo: data.datos_renta_largo_plazo || (data.inquilino_id ? {
-        inquilino_id: data.inquilino_id || null,
-        fecha_inicio_contrato: data.fecha_inicio_contrato || null,
-        duracion_contrato: data.duracion_contrato || null,
-        frecuencia_pago: data.frecuencia_pago || null,
-        dia_pago: data.dia_pago || null,
-        precio_renta_disponible: data.precio_renta_disponible || null,
-        requisitos_renta: data.requisitos_renta || [],
-        requisitos_renta_custom: data.requisitos_renta_custom || []
-      } : null),
-      datos_renta_vacacional: data.datos_renta_vacacional || (data.amenidades_vacacional?.length > 0 ? {
-        amenidades_vacacional: data.amenidades_vacacional || [],
-        estancia_minima: data.estancia_minima || null,
-        politicas: data.politicas || null
-      } : null),
-      datos_venta: data.datos_venta || null
-    };
-  };
-
-  // ====================================
-  // ✅ FUNCIÓN DE GUARDADO FINAL - ESTRUCTURA JSON OPTIMIZADA
-  // ====================================
-  const handleWizardSave = async (data: PropertyFormData) => {
-    if (!user?.id) {
-      logger.warn('Usuario no autenticado');
-      throw new Error('Usuario no autenticado');
-    }
-
-    try {
-      // 🔧 Convertir a nuevo formato si es necesario
-      const dataConvertida = convertirANuevoFormato(data);
-      
-      // ✅ ESTRUCTURA OPTIMIZADA CON JSON (25 columnas en vez de 50+)
-      const propiedadData = {
-        user_id: user.id,
-        nombre: dataConvertida.nombre_propiedad,
-        tipo_propiedad: dataConvertida.tipo_propiedad,
-        estados: dataConvertida.estados,
-        
-        // Datos básicos
-        mobiliario: dataConvertida.mobiliario,
-        capacidad_personas: dataConvertida.capacidad_personas || null,
-        tamano_terreno: dataConvertida.tamano_terreno || null,
-        tamano_construccion: dataConvertida.tamano_construccion || null,
-        
-        // ✅ UBICACIÓN como JSON (toda la dirección en un solo campo)
-        ubicacion: dataConvertida.ubicacion || null,
-        
-        // Espacios
-        espacios: dataConvertida.espacios || [],
-        
-        // ✅ PRECIOS consolidados en un solo JSON
-        precios: dataConvertida.precios || null,
-        
-        // ✅ Datos condicionales según estados (también JSON)
-        datos_renta_largo_plazo: dataConvertida.datos_renta_largo_plazo || null,
-        datos_renta_vacacional: dataConvertida.datos_renta_vacacional || null,
-        datos_venta: dataConvertida.datos_venta || null,
-        
-        // Contactos
-        propietario_id: dataConvertida.propietario_id || null,
-        supervisor_id: dataConvertida.supervisor_id || null,
-        
-        // Control
-        is_draft: false,
-        updated_at: new Date().toISOString()
-      };
-
-      let propiedadId: string;
-
-      // Actualizar o crear propiedad
-      if (draftIdRef.current) {
-        const { error } = await supabase
-          .from('propiedades')
-          .update(propiedadData)
-          .eq('id', draftIdRef.current);
-        
-        if (error) throw error;
-        propiedadId = draftIdRef.current;
-        
-      } else {
-        const { data: propiedad, error } = await supabase
-          .from('propiedades')
-          .insert({
-            ...propiedadData,
-            created_at: new Date().toISOString()
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        propiedadId = propiedad.id;
-      }
-
-      // ========================================
-      // GUARDAR SERVICIOS
-      // ========================================
-      if (data.servicios && data.servicios.length > 0) {
-        logger.log('Guardando servicios...', data.servicios.length);
-        
-        // Preparar servicios para insertar
-        const serviciosParaInsertar = data.servicios.map(servicio => ({
-          propiedad_id: propiedadId,
-          tipo_servicio: servicio.tipo_servicio,
-          nombre: servicio.nombre,
-          numero_contrato: servicio.numero_contrato || null,
-          monto: servicio.monto,
-          es_fijo: servicio.es_fijo,
-          ultima_fecha_pago: servicio.ultima_fecha_pago,
-          frecuencia_valor: servicio.frecuencia_valor,
-          frecuencia_unidad: servicio.frecuencia_unidad,
-          link_pago: servicio.link_pago || null,
-          activo: true,
-          notas: servicio.notas || null
-        }));
-
-        // Insertar servicios en Supabase
-        const { error: errorServicios } = await supabase
-          .from('servicios_inmueble')
-          .insert(serviciosParaInsertar);
-
-        if (errorServicios) {
-          logger.error('Error al guardar servicios:', errorServicios);
-          toast.error('Propiedad guardada pero hubo un error al guardar los servicios');
-        } else {
-          logger.log('✅ Servicios guardados correctamente');
-        }
-      }
-
-      draftIdRef.current = null;
-      cargarPropiedades(user.id);
-      toast.success('Propiedad guardada correctamente');
-      
-    } catch (error) {
-      logger.error('Error al guardar propiedad:', error);
-      toast.error('Error al guardar la propiedad');
-      throw error;
-    }
-  };
-
-  // ====================================
-  // ✅ FUNCIÓN DE GUARDADO BORRADOR - ESTRUCTURA JSON OPTIMIZADA
-  // ====================================
-  const handleWizardSaveDraft = async (data: PropertyFormData) => {
-    if (!user?.id) {
-      logger.warn('Usuario no autenticado');
-      return;
-    }
-
-    if (isSavingRef.current) {
-      logger.log('Ya hay un guardado en proceso');
-      return;
-    }
-
-    isSavingRef.current = true;
-
-    try {
-      // 🔧 Convertir a nuevo formato si es necesario
-      const dataConvertida = convertirANuevoFormato(data);
-      
-      // ✅ ESTRUCTURA OPTIMIZADA CON JSON (25 columnas en vez de 50+)
-      const draftData = {
-        user_id: user.id,
-        nombre: dataConvertida.nombre_propiedad || 'Borrador sin nombre',
-        tipo_propiedad: dataConvertida.tipo_propiedad,
-        estados: dataConvertida.estados,
-        
-        // Datos básicos
-        mobiliario: dataConvertida.mobiliario,
-        capacidad_personas: dataConvertida.capacidad_personas || null,
-        tamano_terreno: dataConvertida.tamano_terreno || null,
-        tamano_construccion: dataConvertida.tamano_construccion || null,
-        
-        // ✅ UBICACIÓN como JSON
-        ubicacion: dataConvertida.ubicacion || null,
-        
-        // Espacios
-        espacios: dataConvertida.espacios || [],
-        
-        // ✅ PRECIOS consolidados en un solo JSON
-        precios: dataConvertida.precios || null,
-        
-        // ✅ Datos condicionales
-        datos_renta_largo_plazo: dataConvertida.datos_renta_largo_plazo || null,
-        datos_renta_vacacional: dataConvertida.datos_renta_vacacional || null,
-        datos_venta: dataConvertida.datos_venta || null,
-        
-        // Contactos
-        propietario_id: dataConvertida.propietario_id || null,
-        supervisor_id: dataConvertida.supervisor_id || null,
-        
-        // Control
-        is_draft: true,
-        updated_at: new Date().toISOString()
-      };
-
-      let propiedadId: string;
-
-      if (draftIdRef.current) {
-        const { error } = await supabase
-          .from('propiedades')
-          .update(draftData)
-          .eq('id', draftIdRef.current);
-
-        if (error) throw error;
-        propiedadId = draftIdRef.current;
-        logger.log(`Borrador actualizado: ${draftIdRef.current}`);
-        
-      } else {
-        const { data: nuevoBorrador, error } = await supabase
-          .from('propiedades')
-          .insert({
-            ...draftData,
-            created_at: new Date().toISOString()
-          })
-          .select('id')
-          .single();
-
-        if (error) throw error;
-        
-        draftIdRef.current = nuevoBorrador.id;
-        propiedadId = nuevoBorrador.id;
-        logger.log(`Borrador creado: ${nuevoBorrador.id}`);
-      }
-
-      // Guardar servicios en borrador (opcional)
-      if (data.servicios && data.servicios.length > 0) {
-        logger.log('Guardando servicios en borrador...', data.servicios.length);
-        
-        // Primero eliminar servicios existentes del borrador
-        await supabase
-          .from('servicios_inmueble')
-          .delete()
-          .eq('propiedad_id', propiedadId);
-
-        // Insertar servicios actualizados
-        const serviciosParaInsertar = data.servicios.map(servicio => ({
-          propiedad_id: propiedadId,
-          tipo_servicio: servicio.tipo_servicio,
-          nombre: servicio.nombre,
-          numero_contrato: servicio.numero_contrato || null,
-          monto: servicio.monto,
-          es_fijo: servicio.es_fijo,
-          ultima_fecha_pago: servicio.ultima_fecha_pago,
-          frecuencia_valor: servicio.frecuencia_valor,
-          frecuencia_unidad: servicio.frecuencia_unidad,
-          link_pago: servicio.link_pago || null,
-          activo: true,
-          notas: servicio.notas || null
-        }));
-
-        await supabase
-          .from('servicios_inmueble')
-          .insert(serviciosParaInsertar);
-        
-        logger.log('✅ Servicios de borrador guardados');
-      }
-
-    } catch (error) {
-      logger.error('Error al guardar borrador:', error);
-    } finally {
-      setTimeout(() => {
-        isSavingRef.current = false;
-      }, 500);
-    }
-  };
-
   const handleCloseWizard = () => {
-    draftIdRef.current = null;
-    isSavingRef.current = false;
-    setShowWizard(false);
-  };
+    setShowWizard(false)
+  }
 
   const propiedadesFiltradas = propiedades.filter(prop => {
     const cumpleBusqueda = prop.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -579,7 +276,6 @@ export default function CatalogoPage() {
 
         {propiedadesFiltradas.length > 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-            {/* Encabezados de la tabla */}
             <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-6 py-3">
               <div className="flex items-center gap-4">
                 <div className="w-20"></div>
@@ -596,7 +292,6 @@ export default function CatalogoPage() {
               </div>
             </div>
 
-            {/* Filas de propiedades */}
             <div className="divide-y divide-gray-100">
               {propiedadesFiltradas.map((prop) => (
                 <div 
@@ -604,7 +299,6 @@ export default function CatalogoPage() {
                   className="px-6 py-4 hover:bg-gray-50 transition-all"
                 >
                   <div className="flex items-center gap-4">
-                    {/* Foto thumbnail */}
                     <div>
                       <img 
                         src={prop.foto_portada || "https://via.placeholder.com/80x60/f3f4f6/9ca3af?text=Sin+foto"}
@@ -616,7 +310,6 @@ export default function CatalogoPage() {
                       />
                     </div>
 
-                    {/* Info de la propiedad */}
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h3 className="text-lg font-bold text-gray-800 font-poppins">
@@ -639,9 +332,7 @@ export default function CatalogoPage() {
                       </div>
                     </div>
 
-                    {/* Botones de acción */}
                     <div className="flex gap-4">
-                      {/* Home */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirHome(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -652,7 +343,6 @@ export default function CatalogoPage() {
                         </svg>
                       </button>
 
-                      {/* Calendario */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirCalendario(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-cyan-200 bg-cyan-50 hover:bg-cyan-100 hover:border-cyan-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -665,7 +355,6 @@ export default function CatalogoPage() {
                         </svg>
                       </button>
 
-                      {/* Tickets */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirTickets(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-orange-200 bg-orange-50 hover:bg-orange-100 hover:border-orange-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -678,7 +367,6 @@ export default function CatalogoPage() {
                         </svg>
                       </button>
 
-                      {/* Inventario */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirInventario(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-gray-200 bg-gray-50 hover:bg-gray-100 hover:border-gray-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -690,7 +378,6 @@ export default function CatalogoPage() {
                         </svg>
                       </button>
 
-                      {/* Galería */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirGaleria(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-pink-200 bg-pink-50 hover:bg-pink-100 hover:border-pink-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -702,7 +389,6 @@ export default function CatalogoPage() {
                         </svg>
                       </button>
 
-                      {/* Anuncio */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirAnuncio(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-yellow-200 bg-yellow-50 hover:bg-yellow-100 hover:border-yellow-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -713,7 +399,6 @@ export default function CatalogoPage() {
                         </svg>
                       </button>
 
-                      {/* Balance */}
                       <button
                         onClick={(e) => { e.stopPropagation(); abrirBalance(prop.id); }}
                         className="w-12 h-12 rounded-lg border-2 border-emerald-200 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-110 transition-all flex items-center justify-center group"
@@ -763,8 +448,18 @@ export default function CatalogoPage() {
         <WizardModal
           isOpen={showWizard}
           onClose={handleCloseWizard}
-          onSave={handleWizardSave}
-          onSaveDraft={handleWizardSaveDraft}
+          mode="create"
+          onComplete={async (propertyId) => {
+            console.log('🎉 Propiedad creada con ID:', propertyId);
+            
+            // Recargar lista de propiedades
+            if (user?.id) {
+              await cargarPropiedades(user.id);
+            }
+            
+            // Mostrar toast de éxito
+            toast.success('✅ Propiedad creada exitosamente');
+          }}
         />
       )}
     </div>

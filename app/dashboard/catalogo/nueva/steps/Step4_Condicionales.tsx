@@ -1,25 +1,112 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { PropertyFormData } from '@/types/property';
 import Input from '@/components/ui/input';
 
 interface Step4Props {
   data: PropertyFormData;
   onUpdate: (data: Partial<PropertyFormData>) => void;
-  contactos?: Array<{
+  inquilinos?: Array<{
     id: string;
     nombre: string;
-    telefono: string;
-    correo: string;
-    tipo: 'inquilino' | 'propietario' | 'proveedor' | 'supervisor';
-  }>;
-  usuariosRegistrados?: Array<{
-    id: string;
-    full_name: string;
     email: string;
   }>;
-  onAgregarContacto?: (tipo: 'inquilino' | 'propietario' | 'proveedor' | 'supervisor') => void;
+  onAgregarInquilino?: (email: string) => Promise<void>;
+}
+
+// Modal para agregar inquilino
+interface ModalAgregarInquilinoProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAgregar: (email: string) => Promise<void>;
+}
+
+function ModalAgregarInquilino({ isOpen, onClose, onAgregar }: ModalAgregarInquilinoProps) {
+  const [email, setEmail] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    
+    // Validar que el campo no esté vacío
+    if (!email.trim()) {
+      setError('Por favor ingresa un correo');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await onAgregar(email);
+      setEmail('');
+      onClose();
+    } catch (err: any) {
+      setError(err.message || 'Error al agregar inquilino');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+      <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold text-gray-900">
+            Agregar inquilino
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Correo electrónico
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ejemplo@correo.com"
+              className="w-full px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul focus:border-transparent"
+              required
+              autoFocus
+            />
+            {error && (
+              <p className="text-red-500 text-sm mt-1">{error}</p>
+            )}
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors font-semibold"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors font-semibold disabled:opacity-50"
+            >
+              {loading ? 'Agregando...' : 'Agregar'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 const AMENIDADES_VACACIONAL = [
@@ -54,34 +141,21 @@ const DURACION_CONTRATO_UNIDAD = [
 export default function Step4_Condicionales({ 
   data, 
   onUpdate, 
-  contactos = [], 
-  usuariosRegistrados = [],
-  onAgregarContacto 
+  inquilinos = [],
+  onAgregarInquilino
 }: Step4Props) {
-  // Determinar si está rentado basado en si hay inquilino_id con valor
-  const [estaRentado, setEstaRentado] = React.useState(false);
+  const [estaRentado, setEstaRentado] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
-  // Filtrar correctamente por tipo
-  const inquilinos = contactos.filter(c => c.tipo === 'inquilino');
-  const propietarios = contactos.filter(c => c.tipo === 'propietario');
-  const supervisores = contactos.filter(c => c.tipo === 'supervisor');
+  // Debug
+  console.log('Step4 - showModal:', showModal);
 
-  // Combinar propietarios de contactos + usuarios registrados del sistema
-  const propietariosCombinados = [
-    ...propietarios.map(p => ({ id: p.id, nombre: p.nombre, origen: 'contacto' })),
-    ...usuariosRegistrados.map(u => ({ id: u.id, nombre: u.full_name, origen: 'usuario' }))
-  ];
-
-  // Combinar supervisores de contactos + usuarios registrados del sistema
-  const supervisoresCombinados = [
-    ...supervisores.map(s => ({ id: s.id, nombre: s.nombre, origen: 'contacto' })),
-    ...usuariosRegistrados.map(u => ({ id: u.id, nombre: u.full_name, origen: 'usuario' }))
-  ];
-
-  // Sincronizar el estado cuando cambie el inquilino_id desde fuera
+  // Sincronizar el estado cuando cambie el inquilino_email desde fuera
   React.useEffect(() => {
-    setEstaRentado(!!data.inquilino_id && data.inquilino_id !== '');
-  }, [data.inquilino_id]);
+    setEstaRentado(
+      Array.isArray(data.inquilinos_email) && data.inquilinos_email.length > 0
+    );
+  }, [data.inquilinos_email]);
 
   const handleChange = (field: keyof PropertyFormData, value: any) => {
     onUpdate({ [field]: value });
@@ -109,7 +183,7 @@ export default function Step4_Condicionales({
     setEstaRentado(checked);
     if (!checked) {
       // Limpiar todos los campos relacionados con inquilino
-      handleChange('inquilino_id', '');
+      handleChange('inquilinos_email', []);
       handleChange('fecha_inicio_contrato', '');
       handleChange('duracion_contrato_valor', '');
       handleChange('duracion_contrato_unidad', 'meses');
@@ -121,6 +195,16 @@ export default function Step4_Condicionales({
       handleChange('precio_renta_disponible', '');
       handleChange('requisitos_renta', []);
       handleChange('requisitos_renta_custom', []);
+    }
+  };
+
+  const handleAgregarInquilinoModal = async (email: string) => {
+    if (onAgregarInquilino) {
+      await onAgregarInquilino(email);
+    } else {
+      // Comportamiento por defecto: solo cerrar el modal
+      // El padre debe implementar onAgregarInquilino para guardar en BD
+      console.warn('onAgregarInquilino no está implementado');
     }
   };
 
@@ -169,36 +253,85 @@ export default function Step4_Condicionales({
             {/* Campos solo si está rentado */}
             {estaRentado && (
               <div className="space-y-4 pt-2">
-                {/* Inquilino */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Inquilino *
-                  </label>
-                  <div className="flex gap-2">
-                    <select
-                      value={data.inquilino_id || ''}
-                      onChange={(e) => handleChange('inquilino_id', e.target.value)}
-                      className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm font-medium"
-                    >
-                      <option value="">Selecciona el inquilino</option>
-                      {inquilinos.map(c => (
-                        <option key={c.id} value={c.id}>{c.nombre}</option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => onAgregarContacto?.('inquilino')}
-                      className="px-3 py-2.5 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors"
-                      title="Agregar inquilino"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                    </button>
+                {/* Grid de 2 columnas: Inquilino + Día de pago */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Inquilino */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Inquilino(s) *
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="flex-1 border-2 border-gray-300 rounded-lg focus-within:ring-2 focus-within:ring-ras-azul focus-within:border-transparent">
+                        <div className="max-h-40 overflow-y-auto p-2">
+                          {inquilinos.length === 0 ? (
+                            <p className="text-gray-400 text-sm py-2 px-2">No hay inquilinos disponibles</p>
+                          ) : (
+                            inquilinos.map((inq) => (
+                              <label
+                                key={inq.email}
+                                className="flex items-center gap-2 px-2 py-1.5 hover:bg-gray-50 rounded cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={Array.isArray(data.inquilinos_email) 
+                                    ? data.inquilinos_email.includes(inq.email)
+                                    : false
+                                  }
+                                  onChange={(e) => {
+                                    const currentEmails = Array.isArray(data.inquilinos_email) 
+                                      ? data.inquilinos_email 
+                                      : [];
+                                    
+                                    const newEmails = e.target.checked
+                                      ? [...currentEmails, inq.email]
+                                      : currentEmails.filter(email => email !== inq.email);
+                                    
+                                    handleChange('inquilinos_email', newEmails);
+                                  }}
+                                  className="rounded text-ras-azul focus:ring-ras-azul"
+                                />
+                                <span className="text-sm">{inq.email}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          console.log('Abriendo modal de inquilino');
+                          setShowModal(true);
+                        }}
+                        className="px-4 py-2.5 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors font-semibold"
+                        title="Agregar inquilino"
+                      >
+                        +
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {inquilinos.length === 0 
+                        ? 'No hay inquilinos. Agrega uno nuevo.' 
+                        : `${Array.isArray(data.inquilinos_email) ? data.inquilinos_email.length : 0} seleccionado(s) de ${inquilinos.length}`
+                      }
+                    </p>
+                  </div>
+
+                  {/* Día de pago */}
+                  <div>
+                    <Input
+                      id="dia_pago"
+                      label="Día de pago"
+                      type="number"
+                      value={data.dia_pago}
+                      onChange={(e) => handleChange('dia_pago', e.target.value)}
+                      placeholder="5"
+                      min="1"
+                      max="31"
+                    />
                   </div>
                 </div>
 
-                {/* Grid de 2 columnas para campos */}
+                {/* Grid de 2 columnas para otros campos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Fecha de inicio */}
                   <div>
@@ -265,20 +398,6 @@ export default function Step4_Condicionales({
                       ))}
                     </select>
                   </div>
-
-                  {/* Día de pago */}
-                  <div>
-                    <Input
-                      id="dia_pago"
-                      label="Día de pago"
-                      type="number"
-                      value={data.dia_pago}
-                      onChange={(e) => handleChange('dia_pago', e.target.value)}
-                      placeholder="5"
-                      min="1"
-                      max="31"
-                    />
-                  </div>
                 </div>
               </div>
             )}
@@ -289,100 +408,13 @@ export default function Step4_Condicionales({
                 <div>
                   <Input
                     id="precio_renta_disponible"
-                    label="Precio de renta (disponible)"
+                    label="Precio de renta mensual"
                     type="number"
                     value={data.precio_renta_disponible}
                     onChange={(e) => handleChange('precio_renta_disponible', e.target.value)}
                     placeholder="15000"
                     prefix="$"
                   />
-                </div>
-
-                {/* Requisitos de renta */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Requisitos de renta
-                  </label>
-                  <div className="space-y-2">
-                    {/* Requisitos predefinidos como checkboxes */}
-                    {['Aval', 'Depósito', 'Referencias'].map(req => (
-                      <label key={req} className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={data.requisitos_renta?.includes(req) || false}
-                          onChange={(e) => {
-                            const current = data.requisitos_renta || [];
-                            const updated = e.target.checked
-                              ? [...current, req]
-                              : current.filter(r => r !== req);
-                            handleChange('requisitos_renta', updated);
-                          }}
-                          className="rounded text-ras-azul focus:ring-ras-azul"
-                        />
-                        <span className="text-sm font-medium text-gray-700">{req}</span>
-                      </label>
-                    ))}
-
-                    {/* Requisitos personalizados agregados */}
-                    {data.requisitos_renta_custom?.map((req, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={true}
-                          readOnly
-                          className="rounded text-ras-azul focus:ring-ras-azul"
-                        />
-                        <span className="text-sm font-medium text-gray-700 flex-1">{req}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const updated = data.requisitos_renta_custom?.filter((_, i) => i !== idx);
-                            handleChange('requisitos_renta_custom', updated);
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-
-                    {/* Input para agregar requisito personalizado */}
-                    <div className="flex gap-2 mt-2">
-                      <Input
-                        id="nuevo-requisito"
-                        placeholder="Agregar requisito personalizado..."
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const input = e.target as HTMLInputElement;
-                            const valor = input.value.trim();
-                            if (valor) {
-                              const customActuales = data.requisitos_renta_custom || [];
-                              handleChange('requisitos_renta_custom', [...customActuales, valor]);
-                              input.value = '';
-                            }
-                          }
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const input = document.getElementById('nuevo-requisito') as HTMLInputElement;
-                          const valor = input?.value.trim();
-                          if (valor) {
-                            const customActuales = data.requisitos_renta_custom || [];
-                            handleChange('requisitos_renta_custom', [...customActuales, valor]);
-                            input.value = '';
-                          }
-                        }}
-                        className="px-4 py-2 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors text-sm font-medium"
-                      >
-                        Agregar
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -464,134 +496,44 @@ export default function Step4_Condicionales({
   };
 
   return (
-    <div className="space-y-5">
-      {/* SECCIÓN: ASIGNACIONES */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-bold text-gray-900 font-poppins mb-5">
-          Asignaciones
-        </h2>
+    <>
+      <div className="space-y-5">
+        {/* SECCIÓN: DATOS ESPECÍFICOS POR ESTADO */}
+        {data.estados && data.estados.length > 0 ? (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-xl font-bold text-gray-900 font-poppins mb-5">
+              Datos Específicos
+            </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {/* Propietario - COMBINA contactos + usuarios registrados */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Propietario
-            </label>
-            <div className="flex gap-2">
-              <select
-                value={data.propietario_id || ''}
-                onChange={(e) => handleChange('propietario_id', e.target.value)}
-                className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm font-medium"
-              >
-                <option value="">Selecciona el propietario</option>
-                {propietariosCombinados.length > 0 ? (
-                  <>
-                    {/* Primero contactos */}
-                    {propietarios.length > 0 && (
-                      <optgroup label="📋 Contactos registrados">
-                        {propietarios.map(c => (
-                          <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {/* Luego usuarios del sistema */}
-                    {usuariosRegistrados.length > 0 && (
-                      <optgroup label="👤 Usuarios del sistema">
-                        {usuariosRegistrados.map(u => (
-                          <option key={u.id} value={u.id}>{u.full_name}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </>
-                ) : null}
-              </select>
-              <button
-                type="button"
-                onClick={() => onAgregarContacto?.('propietario')}
-                className="px-3 py-2.5 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors"
-                title="Agregar propietario"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </button>
+            <div className="space-y-6">
+              {data.estados.map(estado => renderSection(estado))}
             </div>
           </div>
-
-          {/* Supervisor - COMBINA contactos + usuarios registrados */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Supervisor
-            </label>
-            <div className="flex gap-2">
-              <select
-                value={data.supervisor_id || ''}
-                onChange={(e) => handleChange('supervisor_id', e.target.value)}
-                className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-ras-azul text-sm font-medium"
-              >
-                <option value="">Selecciona el supervisor</option>
-                {supervisoresCombinados.length > 0 ? (
-                  <>
-                    {/* Primero contactos */}
-                    {supervisores.length > 0 && (
-                      <optgroup label="📋 Contactos registrados">
-                        {supervisores.map(c => (
-                          <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {/* Luego usuarios del sistema */}
-                    {usuariosRegistrados.length > 0 && (
-                      <optgroup label="👤 Usuarios del sistema">
-                        {usuariosRegistrados.map(u => (
-                          <option key={u.id} value={u.id}>{u.full_name}</option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </>
-                ) : null}
-              </select>
-              <button
-                type="button"
-                onClick={() => onAgregarContacto?.('supervisor')}
-                className="px-3 py-2.5 bg-ras-azul text-white rounded-lg hover:bg-ras-azul/90 transition-colors"
-                title="Agregar supervisor"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-              </button>
+        ) : (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center">
+            <div className="text-blue-600 mb-2">
+              <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
+            <h3 className="text-lg font-bold text-blue-900 mb-1">
+              Selecciona al menos un estado
+            </h3>
+            <p className="text-sm text-blue-700">
+              Ve al Paso 1 y selecciona uno o más estados para la propiedad (Renta largo plazo, Renta vacacional, Venta, etc.)
+            </p>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* SECCIÓN: DATOS ESPECÍFICOS POR ESTADO */}
-      {data.estados && data.estados.length > 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-bold text-gray-900 font-poppins mb-5">
-            Datos Específicos
-          </h2>
-
-          <div className="space-y-6">
-            {data.estados.map(estado => renderSection(estado))}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6 text-center">
-          <div className="text-blue-600 mb-2">
-            <svg className="w-12 h-12 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-bold text-blue-900 mb-1">
-            Selecciona al menos un estado
-          </h3>
-          <p className="text-sm text-blue-700">
-            Ve al Paso 1 y selecciona uno o más estados para la propiedad (Renta largo plazo, Renta vacacional, Venta, etc.)
-          </p>
-        </div>
+      {/* Modal para agregar inquilino */}
+      {showModal && (
+        <ModalAgregarInquilino
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          onAgregar={handleAgregarInquilinoModal}
+        />
       )}
-    </div>
+    </>
   );
 }
